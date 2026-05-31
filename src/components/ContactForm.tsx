@@ -34,7 +34,7 @@ export default function ContactForm({ currentLang, settings, onSubmitMessage }: 
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error" | "server_error">("idle");
   const isRtl = currentLang === "ar";
   const t = translations[currentLang];
 
@@ -59,10 +59,10 @@ export default function ContactForm({ currentLang, settings, onSubmitMessage }: 
         setSubmitStatus("success");
         setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
       } else {
-        setSubmitStatus("error");
+        setSubmitStatus("server_error");
       }
     } catch (err) {
-      setSubmitStatus("error");
+      setSubmitStatus("server_error");
     } finally {
       setIsSubmitting(false);
     }
@@ -335,6 +335,13 @@ export default function ContactForm({ currentLang, settings, onSubmitMessage }: 
                 <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-800 dark:text-rose-400 text-sm font-semibold flex items-start gap-2.5">
                   <span className="mt-0.5">⚠</span>
                   <span>{t.formError}</span>
+                </div>
+              )}
+
+              {submitStatus === "server_error" && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-800 dark:text-rose-400 text-sm font-semibold flex items-start gap-2.5">
+                  <span className="mt-0.5">⚠</span>
+                  <span>{(t as any).formServerError || "Failed to submit message due to a server error. Please try again later."}</span>
                 </div>
               )}
 

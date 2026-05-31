@@ -408,7 +408,8 @@ function saveDB(data: any) {
 function generateBrochurePDF(parentName: string, applicantPhone: string, subject: string): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: "A4" });
+      const PDFDocumentClass = (PDFDocument as any).default || PDFDocument;
+      const doc = new PDFDocumentClass({ margin: 50, size: "A4" });
       const chunks: Buffer[] = [];
 
       doc.on("data", (chunk) => chunks.push(chunk));

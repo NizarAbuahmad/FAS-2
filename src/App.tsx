@@ -163,7 +163,29 @@ const OFFLINE_FALLBACK = {
   },
   messages: [],
   media: [],
-  users: [],
+  users: [
+    {
+      id: "u-1",
+      username: "nizar_admin",
+      email: "nizar.abuahmad@gmail.com",
+      role: "Admin",
+      createdAt: "2026-05-01T09:00:00Z"
+    },
+    {
+      id: "u-2",
+      username: "samira_editor",
+      email: "editor@firstacademy.edu.jo",
+      role: "Editor",
+      createdAt: "2026-05-15T12:00:00Z"
+    },
+    {
+      id: "u-3",
+      username: "guest_viewer",
+      email: "guest@firstacademy.edu.jo",
+      role: "Viewer",
+      createdAt: "2026-05-19T10:45:00Z"
+    }
+  ],
   gallery: [
     {
       id: "gallery-1",
@@ -215,7 +237,7 @@ export default function App() {
   const [settings, setSettings] = useState<ContactDetails>(OFFLINE_FALLBACK.settings);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [media, setMedia] = useState<MediaAsset[]>([]);
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>(OFFLINE_FALLBACK.users);
   const [stats, setStats] = useState<AnalyticsSummary | null>(null);
   const [pages, setPages] = useState<CustomPage[]>([]);
   const [siteTexts, setSiteTexts] = useState<SiteText[]>([]);
