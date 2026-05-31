@@ -56,6 +56,7 @@ export default function Navbar({
     { name: t.navHome, href: "#home", isStatic: true, slug: "" },
     { name: t.navAbout, href: "#about", isStatic: true, slug: "" },
     { name: t.navTracks, href: "#tracks", isStatic: true, slug: "" },
+    { name: t.navNews, href: "#news", isStatic: true, slug: "" },
     ...pages.map(p => ({
       name: isRtl ? p.titleAr : p.titleEn,
       href: `#page-${p.slug}`,

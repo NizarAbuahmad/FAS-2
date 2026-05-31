@@ -23,6 +23,7 @@ import Navbar from "./components/Navbar";
 import SchoolLogo from "./components/SchoolLogo";
 import HeroCarousel from "./components/HeroCarousel";
 import BriefIntro from "./components/BriefIntro";
+import MediaPosts from "./components/MediaPosts";
 import TracksSection from "./components/TracksSection";
 import ContactForm from "./components/ContactForm";
 import DashboardLayout from "./components/DashboardLayout";
@@ -1234,6 +1235,13 @@ export default function App() {
 
               {/* Pathways / learning streams detail section */}
               <TracksSection currentLang={currentLang} />
+
+              {/* Media publications and activities news section (dynamic CMS) */}
+              <MediaPosts 
+                posts={posts} 
+                currentLang={currentLang} 
+                onPostOpened={handlePostOpened} 
+              />
 
               {/* TESTIMONIAL CAROUSEL PANEL (Custom slideshow) */}
               <section className="py-20 bg-[#111111] text-gray-200 border-y border-white/5 overflow-hidden relative" dir={isRtl ? "rtl" : "ltr"}>
