@@ -30,15 +30,37 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-// Helper to parse youtube URLs into correct embed formats
-function getYouTubeEmbedUrl(url: string): string | null {
+// Helper to parse youtube or google drive URLs into correct embed formats
+function getVideoEmbedUrl(url: string): string | null {
   if (!url) return null;
   const cleanUrl = url.trim();
-  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-  const match = cleanUrl.match(regExp);
-  if (match && match[2] && match[2].length === 11) {
-    return `https://www.youtube.com/embed/${match[2]}?autoplay=1&rel=0`;
+
+  // YouTube match logic
+  const ytRegExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+  const ytMatch = cleanUrl.match(ytRegExp);
+  if (ytMatch && ytMatch[2] && ytMatch[2].length === 11) {
+    return `https://www.youtube.com/embed/${ytMatch[2]}?autoplay=1&rel=0`;
   }
+
+  // Google Drive match logic
+  if (cleanUrl.includes("drive.google.com")) {
+    let docId = "";
+    const driveRegExp = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const driveMatch = cleanUrl.match(driveRegExp);
+    if (driveMatch && driveMatch[1]) {
+      docId = driveMatch[1];
+    } else {
+      const openRegExp = /[?&]id=([a-zA-Z0-9_-]+)/;
+      const openMatch = cleanUrl.match(openRegExp);
+      if (openMatch && openMatch[1]) {
+        docId = openMatch[1];
+      }
+    }
+    if (docId) {
+      return `https://drive.google.com/file/d/${docId}/preview`;
+    }
+  }
+
   return null;
 }
 
@@ -528,9 +550,9 @@ export default function BriefIntro({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Video Player Box */}
                       <div className="rounded-2xl overflow-hidden border border-white/10 bg-black relative flex flex-col justify-center min-h-[220px] sm:min-h-[320px]">
-                        {getYouTubeEmbedUrl(lightboxItem.videoUrl) ? (
+                        {getVideoEmbedUrl(lightboxItem.videoUrl) ? (
                           <iframe
-                            src={getYouTubeEmbedUrl(lightboxItem.videoUrl)!}
+                            src={getVideoEmbedUrl(lightboxItem.videoUrl)!}
                             className="w-full h-[220px] sm:h-[320px] border-0 block"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen

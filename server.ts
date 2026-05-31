@@ -566,15 +566,17 @@ async function saveDB(data: any) {
     await Promise.all(promises);
     console.log("[Firestore-Sync] Standard cloud write operation completed successfully.");
 
-    // Fire off asynchronous background reconciliation to clean up any deleted/orphaned documents
-    reconcileCollection("posts", data.posts || [], "id");
-    reconcileCollection("slides", data.slides || [], "id");
-    reconcileCollection("messages", data.messages || [], "id");
-    reconcileCollection("media", data.media || [], "id");
-    reconcileCollection("users", data.users || [], "id");
-    reconcileCollection("gallery", data.gallery || [], "id");
-    reconcileCollection("pages", data.pages || [], "id");
-    reconcileCollection("siteTexts", data.siteTexts || [], "key");
+    // Fire off reconciliation to clean up any deleted/orphaned documents and wait for completion
+    await Promise.all([
+      reconcileCollection("posts", data.posts || [], "id"),
+      reconcileCollection("slides", data.slides || [], "id"),
+      reconcileCollection("messages", data.messages || [], "id"),
+      reconcileCollection("media", data.media || [], "id"),
+      reconcileCollection("users", data.users || [], "id"),
+      reconcileCollection("gallery", data.gallery || [], "id"),
+      reconcileCollection("pages", data.pages || [], "id"),
+      reconcileCollection("siteTexts", data.siteTexts || [], "key")
+    ]);
 
   } catch (err) {
     console.error("[Firestore-Sync] Error during saveDB sync flow:", err);
@@ -1088,7 +1090,7 @@ async function startServer() {
   });
 
   // Create or Update Dynamic Page
-  app.post("/api/pages", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/pages", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const pageData = req.body;
     
     if (!pageData.id) {
@@ -1115,7 +1117,7 @@ async function startServer() {
       
       if (!dbStore.pages) dbStore.pages = [];
       dbStore.pages.push(newPage);
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.status(201).json(newPage);
     } else {
       // Update
@@ -1125,7 +1127,7 @@ async function startServer() {
           ...dbStore.pages[idx],
           ...pageData
         };
-        saveDB(dbStore);
+        await saveDB(dbStore);
         res.json(dbStore.pages[idx]);
       } else {
         res.status(404).json({ error: "Page not found" });
@@ -1134,11 +1136,11 @@ async function startServer() {
   });
 
   // Delete Dynamic Page
-  app.delete("/api/pages/:id", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.delete("/api/pages/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const initialLen = (dbStore.pages || []).length;
     dbStore.pages = (dbStore.pages || []).filter((p: any) => p.id !== req.params.id);
     if (dbStore.pages.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Page deleted successfully" });
     } else {
       res.status(404).json({ error: "Page not found" });
@@ -1151,7 +1153,7 @@ async function startServer() {
   });
 
   // Create or Update Site Custom Text Overrides
-  app.post("/api/site-texts", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/site-texts", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const { key, valueEn, valueAr } = req.body;
     if (!key) {
       return res.status(400).json({ error: "Missing required key field." });
@@ -1166,12 +1168,12 @@ async function startServer() {
       dbStore.siteTexts.push({ key, valueEn, valueAr });
     }
     
-    saveDB(dbStore);
+    await saveDB(dbStore);
     res.json({ success: true, siteTexts: dbStore.siteTexts });
   });
 
   // Batch Update Site Custom Text Overrides
-  app.post("/api/site-texts/batch", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/site-texts/batch", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const { texts } = req.body;
     if (!Array.isArray(texts)) {
       return res.status(400).json({ error: "texts must be an array" });
@@ -1189,12 +1191,12 @@ async function startServer() {
       }
     });
     
-    saveDB(dbStore);
+    await saveDB(dbStore);
     res.json({ success: true, siteTexts: dbStore.siteTexts });
   });
 
   // Create or Update Post
-  app.post("/api/posts", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/posts", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const postData: Partial<Post> = req.body;
     
     if (!postData.id) {
@@ -1217,7 +1219,7 @@ async function startServer() {
         views: 0
       };
       dbStore.posts.unshift(newPost);
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.status(201).json(newPost);
     } else {
       // Update
@@ -1227,7 +1229,7 @@ async function startServer() {
           ...dbStore.posts[idx],
           ...postData
         };
-        saveDB(dbStore);
+        await saveDB(dbStore);
         res.json(dbStore.posts[idx]);
       } else {
         res.status(404).json({ error: "Post not found" });
@@ -1236,11 +1238,11 @@ async function startServer() {
   });
 
   // Track post view increment
-  app.post("/api/posts/:id/view", (req, res) => {
+  app.post("/api/posts/:id/view", async (req, res) => {
     const idx = dbStore.posts.findIndex((p: Post) => p.id === req.params.id);
     if (idx !== -1) {
       dbStore.posts[idx].views = (dbStore.posts[idx].views || 0) + 1;
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ views: dbStore.posts[idx].views });
     } else {
       res.status(404).json({ error: "Post not found" });
@@ -1248,11 +1250,11 @@ async function startServer() {
   });
 
   // Delete Post
-  app.delete("/api/posts/:id", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.delete("/api/posts/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const initialLen = dbStore.posts.length;
     dbStore.posts = dbStore.posts.filter((p: Post) => p.id !== req.params.id);
     if (dbStore.posts.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Post deleted" });
     } else {
       res.status(404).json({ error: "Post not found" });
@@ -1260,7 +1262,7 @@ async function startServer() {
   });
 
   // Create or Update Slides
-  app.post("/api/slides", authenticateToken(["Admin"]), (req, res) => {
+  app.post("/api/slides", authenticateToken(["Admin"]), async (req, res) => {
     const slideData: Partial<CarouselSlide> = req.body;
     
     if (!slideData.id) {
@@ -1276,7 +1278,7 @@ async function startServer() {
         order: slideData.order || dbStore.slides.length + 1
       };
       dbStore.slides.push(newSlide);
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.status(201).json(newSlide);
     } else {
       // Update
@@ -1286,7 +1288,7 @@ async function startServer() {
           ...dbStore.slides[idx],
           ...slideData
         };
-        saveDB(dbStore);
+        await saveDB(dbStore);
         res.json(dbStore.slides[idx]);
       } else {
         res.status(404).json({ error: "Slide not found" });
@@ -1295,11 +1297,11 @@ async function startServer() {
   });
 
   // Delete Slide
-  app.delete("/api/slides/:id", authenticateToken(["Admin"]), (req, res) => {
+  app.delete("/api/slides/:id", authenticateToken(["Admin"]), async (req, res) => {
     const initialLen = dbStore.slides.length;
     dbStore.slides = dbStore.slides.filter((s: CarouselSlide) => s.id !== req.params.id);
     if (dbStore.slides.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Slide deleted" });
     } else {
       res.status(404).json({ error: "Slide not found" });
@@ -1307,7 +1309,7 @@ async function startServer() {
   });
 
   // Create or Update Gallery Item
-  app.post("/api/gallery", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/gallery", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const itemData: Partial<GalleryItem> = req.body;
     
     if (!itemData.titleEn || !itemData.image) {
@@ -1338,19 +1340,19 @@ async function startServer() {
       dbStore.gallery.push(item);
     }
 
-    saveDB(dbStore);
+    await saveDB(dbStore);
     res.json({ success: true, item });
   });
 
   // Delete Gallery Item
-  app.delete("/api/gallery/:id", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.delete("/api/gallery/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     if (!dbStore.gallery) {
       dbStore.gallery = [];
     }
     const initialLen = dbStore.gallery.length;
     dbStore.gallery = dbStore.gallery.filter((g: GalleryItem) => g.id !== req.params.id);
     if (dbStore.gallery.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Gallery item deleted" });
     } else {
       res.status(404).json({ error: "Gallery item not found" });
@@ -1358,13 +1360,13 @@ async function startServer() {
   });
 
   // Update Settings (Contact Info, Notification alerts)
-  app.post("/api/settings", authenticateToken(["Admin"]), (req, res) => {
+  app.post("/api/settings", authenticateToken(["Admin"]), async (req, res) => {
     const settingsData: Partial<ContactDetails> = req.body;
     dbStore.settings = {
       ...dbStore.settings,
       ...settingsData
     };
-    saveDB(dbStore);
+    await saveDB(dbStore);
     res.json(dbStore.settings);
   });
 
@@ -1387,7 +1389,7 @@ async function startServer() {
     };
 
     dbStore.messages.unshift(newMessage);
-    saveDB(dbStore);
+    await saveDB(dbStore);
 
     // Modern background promise loop for PDF compilation and dispatch
     generateBrochurePDF(newMessage.name, newMessage.phone, newMessage.subject)
@@ -1398,11 +1400,11 @@ async function startServer() {
   });
 
   // Mark message as read
-  app.patch("/api/messages/:id/read", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.patch("/api/messages/:id/read", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const idx = dbStore.messages.findIndex((m: ContactMessage) => m.id === req.params.id);
     if (idx !== -1) {
       dbStore.messages[idx].isRead = true;
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json(dbStore.messages[idx]);
     } else {
       res.status(404).json({ error: "Message not found" });
@@ -1410,11 +1412,11 @@ async function startServer() {
   });
 
   // Delete message query
-  app.delete("/api/messages/:id", authenticateToken(["Admin"]), (req, res) => {
+  app.delete("/api/messages/:id", authenticateToken(["Admin"]), async (req, res) => {
     const initialLen = dbStore.messages.length;
     dbStore.messages = dbStore.messages.filter((m: ContactMessage) => m.id !== req.params.id);
     if (dbStore.messages.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Inquiry message deleted" });
     } else {
       res.status(404).json({ error: "Inquiry not found" });
@@ -1424,7 +1426,7 @@ async function startServer() {
   // --- AUTOMATED ASSET MANAGEMENT: UPLOADS & OPTIMIZATION ---
 
   // Upload Media Asset (Simulates / Executes Automatic Image Resizing and WebP optimization)
-  app.post("/api/media", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/media", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const { name, type, size, content } = req.body; // Expects base64 in content
     
     if (!name || !content) {
@@ -1461,7 +1463,7 @@ async function startServer() {
     };
 
     dbStore.media.unshift(newAsset);
-    saveDB(dbStore);
+    await saveDB(dbStore);
 
     console.log(`[AUTOMATIC IMAGE OPTIMIZATION BACKEND] File: ${name} -> ${messageLog}`);
 
@@ -1473,11 +1475,11 @@ async function startServer() {
   });
 
   // Delete Media asset
-  app.delete("/api/media/:id", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.delete("/api/media/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     const initialLen = dbStore.media.length;
     dbStore.media = dbStore.media.filter((m: MediaAsset) => m.id !== req.params.id);
     if (dbStore.media.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Media asset deleted" });
     } else {
       res.status(404).json({ error: "Media not found" });
@@ -1485,7 +1487,7 @@ async function startServer() {
   });
 
   // Create administrators/users (with secure PBKDF2/cryptographic salting and hashing)
-  app.post("/api/users", authenticateToken(["Admin"]), (req, res) => {
+  app.post("/api/users", authenticateToken(["Admin"]), async (req, res) => {
     const userData: Partial<AdminUser> = req.body;
     
     if (!userData.id) {
@@ -1510,7 +1512,7 @@ async function startServer() {
         passwordHash
       };
       dbStore.users.push(newUser);
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.status(201).json({
         id: newUser.id,
         username: newUser.username,
@@ -1537,7 +1539,7 @@ async function startServer() {
         }
 
         dbStore.users[idx] = updatePayload;
-        saveDB(dbStore);
+        await saveDB(dbStore);
 
         res.json({
           id: updatePayload.id,
@@ -1553,11 +1555,11 @@ async function startServer() {
   });
 
   // Delete Administrator
-  app.delete("/api/users/:id", authenticateToken(["Admin"]), (req, res) => {
+  app.delete("/api/users/:id", authenticateToken(["Admin"]), async (req, res) => {
     const initialLen = dbStore.users.length;
     dbStore.users = dbStore.users.filter((u: AdminUser) => u.id !== req.params.id);
     if (dbStore.users.length < initialLen) {
-      saveDB(dbStore);
+      await saveDB(dbStore);
       res.json({ success: true, message: "Administrative profile removed" });
     } else {
       res.status(404).json({ error: "Profile not found" });
