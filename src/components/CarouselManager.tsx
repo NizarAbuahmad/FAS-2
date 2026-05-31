@@ -6,8 +6,9 @@
 import React, { useState, useRef } from "react";
 import { CarouselSlide, MediaAsset, UserRole } from "../types";
 import { translations } from "../utils/translations";
+import { compressImage } from "../utils/imageCompressor";
 import { 
-  Save, 
+  Save,
   Plus, 
   Trash2, 
   Image as ImageIcon, 
@@ -81,29 +82,23 @@ export default function CarouselManager({
       setIsUploadingImage(true);
       setUploadError("");
       try {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const base64Content = event.target?.result as string;
-          const uploadedAsset = await onUploadMedia({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            content: base64Content
-          });
-          if (uploadedAsset && uploadedAsset.url) {
-            setSelectedSlide((prev) => prev ? { ...prev, image: uploadedAsset.url } : null);
-          } else {
-            setUploadError("File upload dispatch aborted by server.");
-          }
-          setIsUploadingImage(false);
-        };
-        reader.onerror = () => {
-          setUploadError("Error reading asset file.");
-          setIsUploadingImage(false);
-        };
-        reader.readAsDataURL(file);
+        const compressedBase64 = await compressImage(file);
+        const approximateSize = Math.round((compressedBase64.length * 3) / 4);
+        
+        const uploadedAsset = await onUploadMedia({
+          name: file.name,
+          type: "image/jpeg",
+          size: approximateSize,
+          content: compressedBase64
+        });
+        if (uploadedAsset && uploadedAsset.url) {
+          setSelectedSlide((prev) => prev ? { ...prev, image: uploadedAsset.url } : null);
+        } else {
+          setUploadError("File upload dispatch aborted by server.");
+        }
       } catch (err) {
-        setUploadError("Image upload parsing failure.");
+        setUploadError("Image compression or upload failure.");
+      } finally {
         setIsUploadingImage(false);
       }
     }

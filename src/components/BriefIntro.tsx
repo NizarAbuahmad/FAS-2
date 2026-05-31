@@ -6,8 +6,9 @@
 import React, { useState, useRef } from "react";
 import { translations } from "../utils/translations";
 import { GalleryItem } from "../types";
+import { compressImage } from "../utils/imageCompressor";
 import { 
-  Award, 
+  Award,
   BookOpen, 
   Smartphone, 
   ShieldCheck, 
@@ -103,29 +104,23 @@ export default function BriefIntro({
       setIsUploading(true);
       setErrorMessage("");
       try {
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-          const base64Content = event.target?.result as string;
-          const uploadedAsset = await onUploadMedia({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            content: base64Content
-          });
-          if (uploadedAsset && uploadedAsset.url) {
-            setEditingItem((prev) => prev ? { ...prev, image: uploadedAsset.url } : null);
-          } else {
-            setErrorMessage(isRtl ? "فشل رفع الصورة على الخادم." : "Server error uploading image.");
-          }
-          setIsUploading(false);
-        };
-        reader.onerror = () => {
-          setErrorMessage(isRtl ? "خطأ في قراءة ملف الصورة." : "Error reading image file.");
-          setIsUploading(false);
-        };
-        reader.readAsDataURL(file);
+        const compressedBase64 = await compressImage(file);
+        const approximateSize = Math.round((compressedBase64.length * 3) / 4);
+
+        const uploadedAsset = await onUploadMedia({
+          name: file.name,
+          type: "image/jpeg",
+          size: approximateSize,
+          content: compressedBase64
+        });
+        if (uploadedAsset && uploadedAsset.url) {
+          setEditingItem((prev) => prev ? { ...prev, image: uploadedAsset.url } : null);
+        } else {
+          setErrorMessage(isRtl ? "فشل رفع الصورة على الخادم." : "Server error uploading image.");
+        }
       } catch (err) {
         setErrorMessage(isRtl ? "حدث خطأ أثناء معالجة الصورة." : "Error processing image.");
+      } finally {
         setIsUploading(false);
       }
     }

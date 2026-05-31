@@ -473,10 +473,14 @@ export default function App() {
   // Save Post
   const handleSavePost = async (post: Partial<Post>): Promise<boolean> => {
     let updatedPosts = [...posts];
+    let postToSave: Post;
     if (post.id) {
       const idx = updatedPosts.findIndex(p => p.id === post.id);
       if (idx !== -1) {
         updatedPosts[idx] = { ...updatedPosts[idx], ...post } as Post;
+        postToSave = updatedPosts[idx];
+      } else {
+        postToSave = { ...post } as Post;
       }
     } else {
       const newPost = {
@@ -487,6 +491,7 @@ export default function App() {
         published: true,
       } as Post;
       updatedPosts.unshift(newPost);
+      postToSave = newPost;
     }
     setPosts(updatedPosts);
     saveStateLocally("fas_posts", updatedPosts, true);
@@ -495,7 +500,7 @@ export default function App() {
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(post)
+        body: JSON.stringify(postToSave)
       });
       if (res.ok) {
         fetchAdminStats();
@@ -533,10 +538,14 @@ export default function App() {
   // Save Carousel Slide
   const handleSaveSlide = async (slide: Partial<CarouselSlide>): Promise<boolean> => {
     let updated = [...slides];
+    let slideToSave: CarouselSlide;
     if (slide.id) {
       const idx = updated.findIndex(s => s.id === slide.id);
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...slide } as CarouselSlide;
+        slideToSave = updated[idx];
+      } else {
+        slideToSave = { ...slide } as CarouselSlide;
       }
     } else {
       const newSlide = {
@@ -545,6 +554,7 @@ export default function App() {
         order: slides.length + 1
       } as CarouselSlide;
       updated.push(newSlide);
+      slideToSave = newSlide;
     }
     setSlides(updated);
     saveStateLocally("fas_slides", updated, true);
@@ -553,7 +563,7 @@ export default function App() {
       const res = await fetch("/api/slides", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(slide)
+        body: JSON.stringify(slideToSave)
       });
       if (res.ok) {
         fetchAdminStats();
@@ -591,18 +601,28 @@ export default function App() {
   // Save Gallery Item
   const handleSaveGalleryItem = async (item: Partial<GalleryItem>): Promise<boolean> => {
     let updated = [...gallery];
+    let itemToSave: GalleryItem;
     if (item.id) {
       const idx = updated.findIndex(g => g.id === item.id);
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...item } as GalleryItem;
+        itemToSave = updated[idx];
+      } else {
+        itemToSave = { ...item } as GalleryItem;
       }
     } else {
       const newItem = {
+        categoryEn: "Activities",
+        categoryAr: "الأنشطة المدرسية",
+        videoUrl: "",
+        offsetX: 50,
+        offsetY: 50,
         ...item,
         id: `gallery-${Date.now()}`,
-        order: gallery.length + 1
+        order: item.order || (gallery.length + 1)
       } as GalleryItem;
       updated.push(newItem);
+      itemToSave = newItem;
     }
     setGallery(updated);
     saveStateLocally("fas_gallery", updated, true);
@@ -611,7 +631,7 @@ export default function App() {
       const res = await fetch("/api/gallery", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(item)
+        body: JSON.stringify(itemToSave)
       });
       if (res.ok) {
         await fetchAdminStats();
@@ -649,10 +669,14 @@ export default function App() {
   // Save/Update Custom Page
   const handleSavePage = async (page: Partial<CustomPage>): Promise<boolean> => {
     let updated = [...pages];
+    let pageToSave: CustomPage;
     if (page.id) {
       const idx = updated.findIndex(p => p.id === page.id);
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...page } as CustomPage;
+        pageToSave = updated[idx];
+      } else {
+        pageToSave = { ...page } as CustomPage;
       }
     } else {
       const newPage = {
@@ -661,6 +685,7 @@ export default function App() {
         published: true
       } as CustomPage;
       updated.push(newPage);
+      pageToSave = newPage;
     }
     setPages(updated);
     saveStateLocally("fas_pages", updated, true);
@@ -669,7 +694,7 @@ export default function App() {
       const res = await fetch("/api/pages", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(page)
+        body: JSON.stringify(pageToSave)
       });
       if (res.ok) {
         fetchAdminStats();
@@ -882,7 +907,7 @@ export default function App() {
       const res = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(settingsObj)
+        body: JSON.stringify(updated)
       });
       if (res.ok) {
         fetchAdminStats();
@@ -898,10 +923,14 @@ export default function App() {
   // Save Admin user
   const handleSaveUser = async (userObj: Partial<AdminUser>): Promise<boolean> => {
     let updated = [...users];
+    let userToSave: AdminUser;
     if (userObj.id) {
       const idx = updated.findIndex(u => u.id === userObj.id);
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...userObj } as AdminUser;
+        userToSave = updated[idx];
+      } else {
+        userToSave = { ...userObj } as AdminUser;
       }
     } else {
       const newUser = {
@@ -910,6 +939,7 @@ export default function App() {
         createdAt: new Date().toISOString()
       } as AdminUser;
       updated.push(newUser);
+      userToSave = newUser;
     }
     setUsers(updated);
     saveStateLocally("fas_users", updated, true);
@@ -918,7 +948,7 @@ export default function App() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(userObj)
+        body: JSON.stringify(userToSave)
       });
       if (res.ok) {
         fetchAdminStats();

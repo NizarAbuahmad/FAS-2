@@ -6,6 +6,7 @@
 import React, { useState, useRef } from "react";
 import { MediaAsset, UserRole } from "../types";
 import { translations } from "../utils/translations";
+import { compressImage } from "../utils/imageCompressor";
 import { 
   Upload, 
   Trash2, 
@@ -70,43 +71,30 @@ export default function MediaManager({
       return;
     }
 
-    // Limit to 5MB
-    if (file.size > 5 * 1024 * 1024) {
-      setErrMsg("Maximum file size is restricted to 5MB.");
-      return;
-    }
-
     setUploading(true);
     setErrMsg("");
     setSuccessMsg("");
 
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64Content = event.target?.result as string;
-        
-        // Post payload to backend
-        const result = await onUploadMedia({
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          content: base64Content
-        });
+      const compressedBase64 = await compressImage(file);
+      const approximateSize = Math.round((compressedBase64.length * 3) / 4);
+      
+      // Post payload to backend
+      const result = await onUploadMedia({
+        name: file.name,
+        type: "image/jpeg",
+        size: approximateSize,
+        content: compressedBase64
+      });
 
-        if (result) {
-          setSuccessMsg(`Succesfully optimized and registered: ${file.name}`);
-        } else {
-          setErrMsg("File upload dispatch aborted by server.");
-        }
-        setUploading(false);
-      };
-      reader.onerror = () => {
-        setErrMsg("Error reading asset file.");
-        setUploading(false);
-      };
-      reader.readAsDataURL(file);
+      if (result) {
+        setSuccessMsg(`Succesfully optimized and registered: ${file.name}`);
+      } else {
+        setErrMsg("File upload dispatch aborted by server.");
+      }
     } catch (err) {
-      setErrMsg("File upload parsing failure.");
+      setErrMsg("File upload or image compression failure.");
+    } finally {
       setUploading(false);
     }
   };
