@@ -100,8 +100,8 @@ const OFFLINE_FALLBACK = {
       "titleEn": "First Academy School Campus",
       "titleAr": "حرم الأكاديمية الأولى والملاعب الخضراء",
       "subtitleEn": "Extensive grass turf football field and safe modern campus buildings.",
-      "subtitleAr": "ملاعب عشبية خضراء خارجية متكاملة وبيئة تعليمية تربوية آمنة وحافلة لمستقبل واعد.",
-      "image": "https://images.unsplash.com/photo-1589487391730-58f20eb2c308?auto=format&fit=crop&q=80&w=1600",
+      "subtitleAr": "روضة ومدارس الأكاديمية الأولى: ملاعب عشبية خضراء خارجية متكاملة وبيئة تعليمية تربوية آمنة.",
+      "image": "/slide1.jpg",
       "link": "#about",
       "order": 1
     },
@@ -110,40 +110,30 @@ const OFFLINE_FALLBACK = {
       "titleEn": "Welcome Back to School Greetings",
       "titleAr": "مرحباً بأبطالنا وبراعمنا في العام الجديد",
       "subtitleEn": "Smiles, custom booklets, stories, back-to-school banners, and high academic excitement.",
-      "subtitleAr": "نستقبل العام الدراسي بكل همة ونشاط مع توزيع القصص والكتب والأنشطة الترفيهية المبهجة.",
-      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=1600",
-      "link": "#about",
+      "subtitleAr": "نستقبل العام الدراسي بكل همة ونشاط مع توزيع القصص والكتب والأنشطة الترحيبية المبهجة.",
+      "image": "/slide2.jpg",
+      "link": "#news",
       "order": 2
     },
     {
       "id": "slide-3",
-      "titleEn": "Joyful Kindergarten & Learning Arch",
-      "titleAr": "قسم الروضة والأقسام التفاعلية للأطفال",
-      "subtitleEn": "Cute happy kindergarteners with colorful helium balloon arches and encouraging classrooms.",
-      "subtitleAr": "فعاليات البراعم والروضة مع زينات البالونات الملونة وبدايات سعيدة ومحفزة لنموهم المتكامل بمساراتنا.",
-      "image": "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?auto=format&fit=crop&q=80&w=1600",
-      "link": "#tracks",
+      "titleEn": "Sports Academy & Football Team",
+      "titleAr": "الأنشطة الرياضية وفريق كرة القدم المتميّز",
+      "subtitleEn": "Nurturing fitness, physical development, teamwork and high athletic sportsmanship.",
+      "subtitleAr": "تدريبات مستمرة لفريق مدارس الأكاديمية الأولى لكرة القدم لبناء اللياقة العالية والمثابرة والتعاون بالملاعب العشبية.",
+      "image": "/slide3.jpg",
+      "link": "#contact",
       "order": 3
     },
     {
       "id": "slide-4",
-      "titleEn": "Creative School Plays & Mother's Day",
-      "titleAr": "المسرح المدرسي وااحتفالية عيد الأم الكبرى",
-      "subtitleEn": "Students performing with hearts and massive white letters under gorgeous spotlights.",
-      "subtitleAr": "نكتشف مواهب أطفالنا على مسرح المدرسة، محتفين بالأم الغالية عبر الفنون والفقرات التربوية المؤثرة.",
-      "image": "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=1600",
-      "link": "#about",
+      "titleEn": "Spelling Bee Champions Awarded",
+      "titleAr": "حفل تكريم الفائزين ببطولة التهجئة السنوية",
+      "subtitleEn": "Celebrating academic excellence, strong vocabulary, and outstanding spelling tier skills.",
+      "subtitleAr": "تكريم براعم الأكاديمية الأولى المتفوقين بمسابقة Spelling Bee السنوية لتشجيع التميّز المعرفي المستدام.",
+      "image": "/slide4.jpg",
+      "link": "#news",
       "order": 4
-    },
-    {
-      "id": "slide-5",
-      "titleEn": "Sports Development & School Football Team",
-      "titleAr": "الأنشطة الرياضية وفريق كرة القدم المتميّز",
-      "subtitleEn": "Coach-led soccer practices on green playgrounds to build fitness and high athletic spirit.",
-      "subtitleAr": "تدريبات مستمرة لفريق المدرسة لكرة القدم بالملاعب العشبية لبناء اللياقة البدنية والروح الرياضية العالية.",
-      "image": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=1600",
-      "link": "#contact",
-      "order": 5
     }
   ],
   settings: {
@@ -253,10 +243,6 @@ export default function App() {
   const saveStateLocally = (key: string, data: any, isUserEdit: boolean = false) => {
     try {
       localStorage.setItem(key, JSON.stringify(data));
-      if (isUserEdit) {
-        localStorage.setItem("fas_db_is_modified", "true");
-        console.log(`[Backup Sync Buffer] Checked off ${key} as mutated by user. Offline state marked modified.`);
-      }
     } catch (e) {
       console.warn("localStorage write skipped:", e);
     }
@@ -342,43 +328,7 @@ export default function App() {
     fetchPublicData();
   }, [isLoggedIn, isAdminMode]);
 
-  // Background database syncing to ensure persistence across scale-downs/container restarts
-  useEffect(() => {
-    if (isLoggedIn && localStorage.getItem("fas_db_is_modified") === "true") {
-      const syncDBToServer = async () => {
-        try {
-          const payload = {
-            posts,
-            slides,
-            settings,
-            messages,
-            media,
-            users,
-            gallery,
-            pages,
-            siteTexts
-          };
-          const res = await fetch("/api/db", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...getAuthHeaders()
-            },
-            body: JSON.stringify(payload)
-          });
-          if (res.ok) {
-            console.log("[Auto-Sync-Gateway] Re-synchronized modified local storage schemas with backend disk DB store.");
-            localStorage.removeItem("fas_db_is_modified");
-          }
-        } catch (err) {
-          console.error("[Auto-Sync-Gateway] Failed to synchronize backup database:", err);
-        }
-      };
-      
-      const t = setTimeout(syncDBToServer, 1500);
-      return () => clearTimeout(t);
-    }
-  }, [isLoggedIn, posts, slides, settings, messages, media, users, gallery, pages, siteTexts]);
+
 
   useEffect(() => {
     if (isLoggedIn && isAdminMode) {

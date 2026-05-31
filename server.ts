@@ -976,12 +976,18 @@ async function startServer() {
   });
 
   // Get full database store (Admin/Editor/Viewer secure only)
-  app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), (req, res) => {
-    res.json(dbStore);
+  app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), async (req, res) => {
+    try {
+      dbStore = await loadDB();
+      res.json(dbStore);
+    } catch (err) {
+      console.error("Error fetching full DB store:", err);
+      res.status(500).json({ error: "Failed to load database snapshot" });
+    }
   });
 
   // Overwrite/Restore full database store (Admin/Editor secure only)
-  app.post("/api/db", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  app.post("/api/db", authenticateToken(["Admin", "Editor"]), async (req, res) => {
     try {
       const newDB = req.body;
       if (newDB && typeof newDB === "object") {
@@ -995,7 +1001,7 @@ async function startServer() {
         if (Array.isArray(newDB.pages)) dbStore.pages = newDB.pages;
         if (Array.isArray(newDB.siteTexts)) dbStore.siteTexts = newDB.siteTexts;
         
-        saveDB(dbStore);
+        await saveDB(dbStore);
         return res.json({ success: true, message: "Cryptographic database restored successfully", db: dbStore });
       }
       res.status(400).json({ error: "Invalid database structure presented" });
@@ -1006,8 +1012,9 @@ async function startServer() {
   });
 
   // Public/all data fetch
-  app.get("/api/public-data", (req, res) => {
+  app.get("/api/public-data", async (req, res) => {
     try {
+      dbStore = await loadDB();
       res.json({
         posts: (dbStore.posts || []).filter((p: Post) => p ? p.published : false),
         slides: [...(dbStore.slides || [])].sort((a: CarouselSlide, b: CarouselSlide) => (a.order || 0) - (b.order || 0)),
@@ -1085,8 +1092,14 @@ async function startServer() {
   });
 
   // Dynamic Pages List
-  app.get("/api/pages", (req, res) => {
-    res.json(dbStore.pages || []);
+  app.get("/api/pages", async (req, res) => {
+    try {
+      dbStore = await loadDB();
+      res.json(dbStore.pages || []);
+    } catch (err) {
+      console.error("Error fetching pages:", err);
+      res.status(500).json({ error: "Failed to fetch pages" });
+    }
   });
 
   // Create or Update Dynamic Page
@@ -1148,8 +1161,14 @@ async function startServer() {
   });
 
   // Site Custom Texts list
-  app.get("/api/site-texts", (req, res) => {
-    res.json(dbStore.siteTexts || []);
+  app.get("/api/site-texts", async (req, res) => {
+    try {
+      dbStore = await loadDB();
+      res.json(dbStore.siteTexts || []);
+    } catch (err) {
+      console.error("Error fetching site texts:", err);
+      res.status(500).json({ error: "Failed to fetch site texts" });
+    }
   });
 
   // Create or Update Site Custom Text Overrides
