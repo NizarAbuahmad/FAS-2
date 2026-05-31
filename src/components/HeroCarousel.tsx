@@ -170,11 +170,7 @@ export default function HeroCarousel({ slides, currentLang }: HeroCarouselProps)
               <div className="absolute inset-0 z-20 flex items-center justify-center px-4 sm:px-8">
                 <div className="max-w-4xl text-center text-white space-y-5 sm:space-y-6">
                   
-                  {/* Highly responsive tag demonstrating progressive optimization performance */}
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/90 text-white font-sans text-xs font-bold leading-none tracking-wide shadow-sm transform transition-all duration-500 animate-pulse">
-                    <CheckCircle size={12} />
-                    <span>{t.carouselOptimized}</span>
-                  </div>
+
 
                   {/* Responsive Heading */}
                   <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">

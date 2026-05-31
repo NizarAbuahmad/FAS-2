@@ -300,7 +300,27 @@ function loadDB() {
 
     // Auto-migrate user logins for secure password verification
     let modified = false;
-    if (!dbStore.users) {
+    if (!dbStore.posts || !Array.isArray(dbStore.posts) || dbStore.posts.length === 0) {
+      dbStore.posts = JSON.parse(JSON.stringify(DEFAULT_DB.posts));
+      modified = true;
+    }
+    if (!dbStore.slides || !Array.isArray(dbStore.slides) || dbStore.slides.length === 0) {
+      dbStore.slides = JSON.parse(JSON.stringify(DEFAULT_DB.slides));
+      modified = true;
+    }
+    if (!dbStore.settings) {
+      dbStore.settings = JSON.parse(JSON.stringify(DEFAULT_DB.settings));
+      modified = true;
+    }
+    if (!dbStore.messages) {
+      dbStore.messages = [];
+      modified = true;
+    }
+    if (!dbStore.media) {
+      dbStore.media = [];
+      modified = true;
+    }
+    if (!dbStore.users || !Array.isArray(dbStore.users) || dbStore.users.length === 0) {
       dbStore.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
       modified = true;
     }
@@ -312,7 +332,7 @@ function loadDB() {
       dbStore.pages = [];
       modified = true;
     }
-    if (!dbStore.gallery) {
+    if (!dbStore.gallery || !Array.isArray(dbStore.gallery) || dbStore.gallery.length === 0) {
       dbStore.gallery = JSON.parse(JSON.stringify(DEFAULT_DB.gallery));
       modified = true;
     }
@@ -747,53 +767,60 @@ async function startServer() {
     res.json({ user: req.user });
   });
 
-  // Get full database store (Admin/Editor secure only)
-  app.get("/api/db", authenticateToken(["Admin", "Editor"]), (req, res) => {
+  // Get full database store (Admin/Editor/Viewer secure only)
+  app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), (req, res) => {
     res.json(dbStore);
   });
 
   // Public/all data fetch
   app.get("/api/public-data", (req, res) => {
-    res.json({
-      posts: dbStore.posts.filter((p: Post) => p.published),
-      slides: dbStore.slides.sort((a: CarouselSlide, b: CarouselSlide) => a.order - b.order),
-      settings: dbStore.settings,
-      media: dbStore.media,
-      pages: (dbStore.pages || []).filter((p: any) => p.published),
-      siteTexts: dbStore.siteTexts || [],
-      gallery: (dbStore.gallery || []).sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
-      users: (dbStore.users || []).map((u: any) => ({
-        id: u.id,
-        username: u.username,
-        email: u.email,
-        role: u.role,
-        createdAt: u.createdAt
-      }))
-    });
+    try {
+      res.json({
+        posts: (dbStore.posts || []).filter((p: Post) => p ? p.published : false),
+        slides: [...(dbStore.slides || [])].sort((a: CarouselSlide, b: CarouselSlide) => (a.order || 0) - (b.order || 0)),
+        settings: dbStore.settings || {},
+        media: dbStore.media || [],
+        pages: (dbStore.pages || []).filter((p: any) => p ? p.published : false),
+        siteTexts: dbStore.siteTexts || [],
+        gallery: [...(dbStore.gallery || [])].sort((a: any, b: any) => (a.order || 0) - (b.order || 0)),
+        users: (dbStore.users || []).map((u: any) => ({
+          id: u.id,
+          username: u.username,
+          email: u.email,
+          role: u.role,
+          createdAt: u.createdAt
+        }))
+      });
+    } catch (err) {
+      console.error("Error in /api/public-data endpoint:", err);
+      res.status(500).json({ error: "Internal server error fetching public data" });
+    }
   });
 
   // Stats / Google Analytics simulation data
   app.get("/api/stats", (req, res) => {
-    // Generate analytics based on contact messages and posts views
-    const postViewsSum = dbStore.posts.reduce((acc: number, cur: Post) => acc + (cur.views || 0), 0);
-    const activeUsersNow = Math.floor(Math.random() * 8) + 3; // 3 to 10 live users
+    try {
+      // Generate analytics based on contact messages and posts views
+      const postsList = dbStore.posts || [];
+      const postViewsSum = postsList.reduce((acc: number, cur: Post) => acc + (cur.views || 0), 0);
+      const activeUsersNow = Math.floor(Math.random() * 8) + 3; // 3 to 10 live users
 
-    const summary: AnalyticsSummary = {
-      totalPageviews: 2450 + postViewsSum,
-      totalSessions: 1120 + Math.floor(postViewsSum / 2),
-      bounceRate: 42.5,
-      avgSessionDuration: "3m 12s",
-      activeUsersNow,
-      pagesList: [
-        { path: "/", nameEn: "Home Portal", nameAr: "البوابة الرئيسية", views: 1850 },
-        ...dbStore.posts.map((p: Post) => ({
-          path: `/news/${p.id}`,
-          nameEn: p.titleEn,
-          nameAr: p.titleAr,
-          views: p.views || 25
-        })),
-        { path: "/#contact", nameEn: "Contact & Registrations", nameAr: "التواصل والقبول", views: 240 }
-      ],
+      const summary: AnalyticsSummary = {
+        totalPageviews: 2450 + postViewsSum,
+        totalSessions: 1120 + Math.floor(postViewsSum / 2),
+        bounceRate: 42.5,
+        avgSessionDuration: "3m 12s",
+        activeUsersNow,
+        pagesList: [
+          { path: "/", nameEn: "Home Portal", nameAr: "البوابة الرئيسية", views: 1850 },
+          ...postsList.map((p: Post) => ({
+            path: `/news/${p.id}`,
+            nameEn: p.titleEn || "",
+            nameAr: p.titleAr || "",
+            views: p.views || 25
+          })),
+          { path: "/#contact", nameEn: "Contact & Registrations", nameAr: "التواصل والقبول", views: 240 }
+        ],
       referrers: [
         { source: "Google Search", count: 860 },
         { source: "Direct Entry", count: 420 },
@@ -815,9 +842,13 @@ async function startServer() {
         { date: "May 25", pageviews: 450, visitors: 210 },
         { date: "May 26", pageviews: 480, visitors: 225 }
       ]
-    };
+      };
 
-    res.json(summary);
+      res.json(summary);
+    } catch (err) {
+      console.error("Error in /api/stats endpoint:", err);
+      res.status(500).json({ error: "Internal server error generating analytics stats" });
+    }
   });
 
   // Dynamic Pages List
