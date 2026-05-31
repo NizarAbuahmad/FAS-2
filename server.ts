@@ -1145,7 +1145,9 @@ async function startServer() {
       categoryEn: itemData.categoryEn || "Facilities",
       categoryAr: itemData.categoryAr || "المرافق المدرسية",
       order: typeof itemData.order === "number" ? itemData.order : 10,
-      videoUrl: itemData.videoUrl || ""
+      videoUrl: itemData.videoUrl || "",
+      offsetX: typeof itemData.offsetX === "number" ? itemData.offsetX : 50,
+      offsetY: typeof itemData.offsetY === "number" ? itemData.offsetY : 50
     };
 
     if (!dbStore.gallery) {

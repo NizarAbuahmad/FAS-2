@@ -14,9 +14,7 @@ import {
   Send, 
   AlertCircle,
   Facebook,
-  Instagram,
-  Linkedin,
-  Twitter
+  Instagram
 } from "lucide-react";
 
 interface ContactFormProps {
@@ -205,24 +203,6 @@ export default function ContactForm({ currentLang, settings, onSubmitMessage }: 
                 aria-label="Instagram"
               >
                 <Instagram size={18} />
-              </a>
-              <a
-                href={settings.socialLinkedin}
-                target="_blank"
-                rel="noreferrer"
-                className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:scale-105 transition-all rounded-xl"
-                aria-label="LinkedIn"
-              >
-                <Linkedin size={18} />
-              </a>
-              <a
-                href={settings.socialX}
-                target="_blank"
-                rel="noreferrer"
-                className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:scale-105 transition-all rounded-xl"
-                aria-label="X (Twitter)"
-              >
-                <Twitter size={18} />
               </a>
             </div>
 

@@ -15,9 +15,6 @@ import {
   Globe, 
   Facebook, 
   Instagram, 
-  Linkedin, 
-  Youtube, 
-  Twitter,
   AlertCircle,
   BellRing
 } from "lucide-react";
@@ -282,54 +279,6 @@ export default function SettingsManager({
                   className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:outline-none"
                 />
                 <Instagram className="absolute left-3 top-3.5 text-slate-405" size={14} />
-              </div>
-            </div>
-
-            {/* Linkedin */}
-            <div className="space-y-2">
-              <label htmlFor="socialLinkedin-settings" className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t.smLinkedin}</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="socialLinkedin-settings"
-                  name="socialLinkedin"
-                  value={formData.socialLinkedin}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:outline-none"
-                />
-                <Linkedin className="absolute left-3 top-3.5 text-slate-405" size={14} />
-              </div>
-            </div>
-
-            {/* Youtube */}
-            <div className="space-y-2">
-              <label htmlFor="socialYoutube-settings" className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t.smYoutube}</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="socialYoutube-settings"
-                  name="socialYoutube"
-                  value={formData.socialYoutube}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:outline-none"
-                />
-                <Youtube className="absolute left-3 top-3.5 text-slate-455 hover:text-red-500" size={14} />
-              </div>
-            </div>
-
-            {/* Twitter / X */}
-            <div className="space-y-2">
-              <label htmlFor="socialX-settings" className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t.smX}</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="socialX-settings"
-                  name="socialX"
-                  value={formData.socialX}
-                  onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-sm focus:outline-none"
-                />
-                <Twitter className="absolute left-3 top-3.5 text-slate-405" size={14} />
               </div>
             </div>
 

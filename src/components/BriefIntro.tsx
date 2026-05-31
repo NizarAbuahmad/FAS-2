@@ -454,6 +454,7 @@ export default function BriefIntro({
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+                        style={{ objectPosition: `${item.offsetX ?? 50}% ${item.offsetY ?? 50}%` }}
                       />
                       {/* Dark overlay banner with prompt eye icon */}
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
@@ -560,6 +561,7 @@ export default function BriefIntro({
                           alt={isRtl ? lightboxItem.titleAr : lightboxItem.titleEn}
                           referrerPolicy="no-referrer"
                           className="w-full h-[220px] sm:h-[320px] object-cover block"
+                          style={{ objectPosition: `${lightboxItem.offsetX ?? 50}% ${lightboxItem.offsetY ?? 50}%` }}
                         />
                         <span className="absolute top-2 left-2 bg-[#1565C0] text-white text-[9px] px-2.5 py-1 rounded-md font-black uppercase tracking-wider shadow">
                           {isRtl ? "صورة فوتوغرافية" : "Capture Photo"}

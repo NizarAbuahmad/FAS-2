@@ -63,7 +63,9 @@ export default function GalleryManager({
       categoryEn: "Activities",
       categoryAr: "الأنشطة المدرسية",
       order: gallery.length + 1,
-      videoUrl: ""
+      videoUrl: "",
+      offsetX: 50,
+      offsetY: 50
     });
     setErrorText("");
   };
@@ -102,6 +104,7 @@ export default function GalleryManager({
           setUploadError("Error reading asset file.");
           setIsUploadingImage(false);
         };
+        reader.onloadend = () => {};
         reader.readAsDataURL(file);
       } catch (err) {
         setUploadError("Image upload parsing failure.");
@@ -122,7 +125,14 @@ export default function GalleryManager({
         categoryAr: isFacilities ? "المرافق المدرسية" : "الأنشطة المدرسية"
       } : null));
     } else {
-      setSelectedItem((prev) => (prev ? { ...prev, [name]: name === "order" ? parseInt(value) || 1 : value } : null));
+      const isNumeric = name === "order" || name === "offsetX" || name === "offsetY";
+      const parsedValue = isNumeric ? parseInt(value) : value;
+      setSelectedItem((prev) => (prev ? {
+        ...prev,
+        [name]: isNumeric && isNaN(parsedValue as number)
+          ? (name === "order" ? 1 : 50)
+          : parsedValue
+      } : null));
     }
   };
 
@@ -456,13 +466,62 @@ export default function GalleryManager({
                   )}
 
                   {selectedItem.image && (
-                    <div className="relative w-full h-[150px] rounded-2xl overflow-hidden bg-neutral-900 border border-white/10">
-                      <img
-                        src={selectedItem.image}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+                    <div className="space-y-3">
+                      <div className="relative w-full h-[150px] rounded-2xl overflow-hidden bg-neutral-900 border border-white/10">
+                        <img
+                          src={selectedItem.image}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                          style={{ objectPosition: `${selectedItem.offsetX ?? 50}% ${selectedItem.offsetY ?? 50}%` }}
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+
+                      {/* Real-time interactive positioning controls */}
+                      <div className="bg-[#111] p-4 rounded-2xl border border-white/5 space-y-3.5">
+                        <div className="flex justify-between items-center pb-2 border-b border-white/5">
+                          <span className="text-[10px] font-extrabold uppercase text-amber-500 tracking-wider">
+                            {isRtl ? "ضبط تموضع ومحاذاة الصورة" : "Adjust Image Positioning"}
+                          </span>
+                          <span className="text-[10px] bg-sky-600/25 text-sky-400 font-mono px-2 py-0.5 rounded-md font-bold">
+                            {selectedItem.offsetX ?? 50}% , {selectedItem.offsetY ?? 50}%
+                          </span>
+                        </div>
+
+                        {/* Move Right (Horizontal position) */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-bold text-gray-350">
+                            <span>{isRtl ? "محاذاة أفقية (تحريك لليمين)" : "Move Horizontal (Right)"}</span>
+                            <span className="font-mono text-gray-500">{selectedItem.offsetX ?? 50}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            name="offsetX"
+                            min="0"
+                            max="100"
+                            value={selectedItem.offsetX ?? 50}
+                            onChange={handleInputChange}
+                            className="w-full accent-sky-500 h-1.5 bg-neutral-800 rounded-lg cursor-pointer"
+                          />
+                        </div>
+
+                        {/* Move Down (Vertical position) */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px] font-bold text-gray-350">
+                            <span>{isRtl ? "محاذاة عمودية (تحريك لأسفل)" : "Move Vertical (Down)"}</span>
+                            <span className="font-mono text-gray-500">{selectedItem.offsetY ?? 50}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            name="offsetY"
+                            min="0"
+                            max="100"
+                            value={selectedItem.offsetY ?? 50}
+                            onChange={handleInputChange}
+                            className="w-full accent-sky-500 h-1.5 bg-neutral-800 rounded-lg cursor-pointer"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

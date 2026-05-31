@@ -121,4 +121,6 @@ export interface GalleryItem {
   categoryAr: string;
   order: number;
   videoUrl?: string;
+  offsetX?: number;
+  offsetY?: number;
 }
