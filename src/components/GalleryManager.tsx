@@ -62,7 +62,8 @@ export default function GalleryManager({
       image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
       categoryEn: "Activities",
       categoryAr: "الأنشطة المدرسية",
-      order: gallery.length + 1
+      order: gallery.length + 1,
+      videoUrl: ""
     });
     setErrorText("");
   };
@@ -355,6 +356,26 @@ export default function GalleryManager({
                       className="w-full bg-[#161618] border border-white/5 focus:border-blue-500 focus:outline-none p-3 rounded-xl text-xs sm:text-sm font-bold text-white shadow-inner font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Video URL (Optional) Block */}
+                <div className="space-y-2">
+                  <label className="text-xs font-extrabold text-gray-400 uppercase tracking-wider block">
+                    {isRtl ? "رابط الفيديو (اختياري)" : "Video Link (Optional)"}
+                  </label>
+                  <input
+                    type="text"
+                    name="videoUrl"
+                    value={selectedItem.videoUrl || ""}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#161618] border border-white/5 focus:border-blue-500 focus:outline-none p-3 rounded-xl text-xs sm:text-sm font-medium text-white shadow-inner font-mono leading-relaxed"
+                    placeholder={isRtl ? "مثال: https://www.youtube.com/watch?v=... أو رابط مباشر .mp4" : "e.g., https://www.youtube.com/watch?v=... or .mp4 link"}
+                  />
+                  <p className="text-[10px] text-gray-500 leading-snug">
+                    {isRtl 
+                      ? "يدعم روابط يوتيوب أو روابط الفيديو المباشرة (.mp4). سيظهر مشغل فيديو تفاعلي داخل العرض."
+                      : "Supports YouTube links or standard format video URLs. Renders an interactive player inside."}
+                  </p>
                 </div>
 
                 {/* Image Selection Block */}

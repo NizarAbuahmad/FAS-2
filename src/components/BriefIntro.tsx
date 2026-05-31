@@ -24,9 +24,18 @@ import {
   Upload,
   Save,
   AlertCircle,
-  Loader2
+  Loader2,
+  Play
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+
+// Helper to parse youtube URLs into correct embed formats
+function getYouTubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}?autoplay=1` : null;
+}
 
 interface BriefIntroProps {
   currentLang: "en" | "ar";
@@ -69,7 +78,8 @@ export default function BriefIntro({
       image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
       categoryEn: "Activities",
       categoryAr: "الأنشطة المدرسية",
-      order: (gallery?.length || 0) + 1
+      order: (gallery?.length || 0) + 1,
+      videoUrl: ""
     });
     setErrorMessage("");
     setIsFormOpen(true);
@@ -453,6 +463,13 @@ export default function BriefIntro({
                         {isRtl ? item.categoryAr : item.categoryEn}
                       </span>
 
+                      {item.videoUrl && (
+                        <span className="absolute bottom-4 left-4 right-auto text-[10px] font-extrabold uppercase bg-red-650 text-white backdrop-blur px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1 shadow-md animate-pulse">
+                          <Play size={10} fill="currentColor" />
+                          {isRtl ? "مقطع فيديو" : "Watch Video"}
+                        </span>
+                      )}
+
                       {/* Explicit inline delete button */}
                       {canManage && (
                         <button
@@ -505,17 +522,60 @@ export default function BriefIntro({
                 exit={{ scale: 0.9, y: 20 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Image panel */}
-                <div className="w-full max-h-[70vh] flex items-center justify-center overflow-hidden bg-black relative">
-                  <img
-                    src={lightboxItem.image}
-                    alt={isRtl ? lightboxItem.titleAr : lightboxItem.titleEn}
-                    referrerPolicy="no-referrer"
-                    className="max-w-full max-h-[70vh] object-contain block mx-auto py-1"
-                  />
-                  
+                {/* Media panel (Video + Image stack or fallback) */}
+                <div className="w-full bg-[#09090b] relative flex flex-col gap-4 p-4 sm:p-6">
+                  {lightboxItem.videoUrl ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Video Player Box */}
+                      <div className="rounded-2xl overflow-hidden border border-white/10 bg-black relative flex flex-col justify-center min-h-[220px] sm:min-h-[320px]">
+                        {getYouTubeEmbedUrl(lightboxItem.videoUrl) ? (
+                          <iframe
+                            src={getYouTubeEmbedUrl(lightboxItem.videoUrl)!}
+                            className="w-full h-[220px] sm:h-[320px] border-0 block"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            src={lightboxItem.videoUrl}
+                            controls
+                            autoPlay
+                            playsInline
+                            className="w-full h-[220px] sm:h-[320px] object-contain block bg-black"
+                          />
+                        )}
+                        <span className="absolute top-2 left-2 bg-red-650 text-white text-[9px] px-2.5 py-1 rounded-md font-black uppercase tracking-wider shadow">
+                          {isRtl ? "مقطع فيديو" : "Live Video"}
+                        </span>
+                      </div>
+
+                      {/* Static Photo Box */}
+                      <div className="rounded-2xl overflow-hidden border border-white/10 bg-black relative flex items-center justify-center min-h-[220px] sm:min-h-[320px]">
+                        <img
+                          src={lightboxItem.image}
+                          alt={isRtl ? lightboxItem.titleAr : lightboxItem.titleEn}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-[220px] sm:h-[320px] object-cover block"
+                        />
+                        <span className="absolute top-2 left-2 bg-[#1565C0] text-white text-[9px] px-2.5 py-1 rounded-md font-black uppercase tracking-wider shadow">
+                          {isRtl ? "صورة فوتوغرافية" : "Capture Photo"}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Default Image Only Viewport */
+                    <div className="w-full max-h-[65vh] flex items-center justify-center overflow-hidden bg-black relative rounded-2xl">
+                      <img
+                        src={lightboxItem.image}
+                        alt={isRtl ? lightboxItem.titleAr : lightboxItem.titleEn}
+                        referrerPolicy="no-referrer"
+                        className="max-w-full max-h-[65vh] object-contain block mx-auto py-1"
+                      />
+                    </div>
+                  )}
+
                   {/* Tag overlay */}
-                  <span className="absolute bottom-4 left-4 right-auto bg-black/65 text-white text-xs px-3.5 py-1.5 rounded-full backdrop-blur border border-white/10 font-bold uppercase">
+                  <span className="self-start bg-black/65 text-white text-[10px] px-3.5 py-1.5 rounded-full backdrop-blur border border-white/10 font-bold uppercase mt-1">
                     {isRtl ? lightboxItem.categoryAr : lightboxItem.categoryEn}
                   </span>
                 </div>
@@ -620,6 +680,21 @@ export default function BriefIntro({
                       placeholder="مثال: التجارب العلمية في المختبر"
                       className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-sky-500 transition-all font-sans"
                       dir="rtl"
+                    />
+                  </div>
+
+                  {/* Video URL (Optional) Field */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "رابط الفيديو (اختياري)" : "Video Link (Optional)"}
+                    </label>
+                    <input
+                      type="text"
+                      name="videoUrl"
+                      value={editingItem.videoUrl || ""}
+                      onChange={handleFormInputChange}
+                      placeholder={isRtl ? "مثال: https://www.youtube.com/watch?v=... أو رابط مباشر .mp4" : "e.g. YouTube watch link or direct video.mp4"}
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-sky-500 transition-all font-sans"
                     />
                   </div>
 

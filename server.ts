@@ -404,8 +404,20 @@ function saveDB(data: any) {
   }
 }
 
+// Helper to sanitize text for PDFKit standard fonts (Helvetica does not support Arabic Unicode)
+function sanitizePdfText(text: string, fallback: string = ""): string {
+  if (!text) return fallback;
+  // Replace non-ASCII characters to prevent Helvetica font encoding exceptions
+  const cleaned = text.replace(/[^\x20-\x7E]/g, "").trim();
+  return cleaned.length > 0 ? cleaned : fallback;
+}
+
 // 📧 Dynamic PDF Brochure Generation using standard PDFKit canvas
 function generateBrochurePDF(parentName: string, applicantPhone: string, subject: string): Promise<Buffer> {
+  const safeParentName = sanitizePdfText(parentName, "Valued Parent");
+  const safePhone = sanitizePdfText(applicantPhone, "Not specified");
+  const safeSubject = sanitizePdfText(subject, "General Inquiry");
+
   return new Promise((resolve, reject) => {
     try {
       const PDFDocumentClass = (PDFDocument as any).default || PDFDocument;
@@ -435,7 +447,7 @@ function generateBrochurePDF(parentName: string, applicantPhone: string, subject
       doc.fillColor(accentColor)
          .font("Helvetica")
          .fontSize(12)
-         .text("روضة ومدارس الأكاديمية الأولى — ننمي القيم المعرفية والأخلاقية", 50, 70);
+         .text("First Academy School - Nurturing Knowledge & Deep Moral Values", 50, 70);
 
       doc.fillColor("#e2e8f0")
          .font("Helvetica-Oblique")
@@ -447,7 +459,7 @@ function generateBrochurePDF(parentName: string, applicantPhone: string, subject
       doc.fillColor(primaryColor)
          .font("Helvetica-Bold")
          .fontSize(16)
-         .text(`Welcome to the FAS Family, ${parentName}!`, 50, 165);
+         .text(`Welcome to the FAS Family, ${safeParentName}!`, 50, 165);
 
       doc.rect(50, 190, 500, 1).fill("#cbd5e1");
 
@@ -488,15 +500,15 @@ function generateBrochurePDF(parentName: string, applicantPhone: string, subject
 
       doc.fillColor(primaryColor)
          .font("Helvetica-Bold").fontSize(10).text("Applicant Parent: ", 65, boxY + 22)
-         .font("Helvetica").text(parentName, 175, boxY + 22);
+         .font("Helvetica").text(safeParentName, 175, boxY + 22);
 
       doc.fillColor(primaryColor)
          .font("Helvetica-Bold").text("Contact Number: ", 65, boxY + 40)
-         .font("Helvetica").text(applicantPhone || "Not specified", 175, boxY + 40);
+         .font("Helvetica").text(safePhone, 175, boxY + 40);
 
       doc.fillColor(primaryColor)
          .font("Helvetica-Bold").text("Division/Interest: ", 65, boxY + 58)
-         .font("Helvetica").text(subject || "General inquiry", 175, boxY + 58);
+         .font("Helvetica").text(safeSubject, 175, boxY + 58);
 
       doc.fillColor(primaryColor)
          .font("Helvetica-Bold").text("Reservation Status: ", 65, boxY + 76)
@@ -1104,7 +1116,8 @@ async function startServer() {
       image: itemData.image,
       categoryEn: itemData.categoryEn || "Facilities",
       categoryAr: itemData.categoryAr || "المرافق المدرسية",
-      order: typeof itemData.order === "number" ? itemData.order : 10
+      order: typeof itemData.order === "number" ? itemData.order : 10,
+      videoUrl: itemData.videoUrl || ""
     };
 
     if (!dbStore.gallery) {
