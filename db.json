@@ -1,0 +1,211 @@
+{
+  "posts": [
+    {
+      "id": "post-1",
+      "titleEn": "Admission & Registration Open for Academic Year 2026/2027",
+      "titleAr": "فتح باب القبول والتسجيل للعام الدراسي الجديد 2026/2027",
+      "contentEn": "We are thrilled to announcement that admission and registration are now open across all school divisions (KG, National, and International Cambridge IGCSE programs) for the upcoming school session. At First Academy School Amman (FAS), we pride ourselves on nurturing safe environments, strong morals, and balanced learning tracks tailored to spark every learner's maximum capacity. Schedule a private tour or submit an online query now.",
+      "contentAr": "يسرنا أن نعلن عن فتح باب القبول والتسجيل بجميع المسارات والصفوف التعليمية (الروضة، البرنامج الوطني، وبرنامج كامبريدج الدولي IGCSE) للعام الدراسي القادم. في روضة ومدارس الأكاديمية الأولى، نفخر بتوفير بيئة تعليمية آمنة ومحفزة تنمي القيم الأخلاقية الراسخة وتدعم نمو أطفالنا في كافة النواحي. احجز جولة خاصة بالحرم المدرسي الآن.",
+      "descriptionEn": "Registration is officially open from Kindergarten up to Grade 12. Choose English IGCSE or National Track.",
+      "descriptionAr": "بدء التسجيل من صفوف الروضة والتمهيدي وحتى الصف الثاني عشر (التوجيهي وبرنامج IGCSE).",
+      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      "date": "2026-05-20",
+      "categoryEn": "Admissions",
+      "categoryAr": "القبول والتسجيل",
+      "authorEn": "Admissions Office",
+      "authorAr": "مكتب القبول",
+      "published": true,
+      "views": 142
+    },
+    {
+      "id": "post-2",
+      "titleEn": "Annual Spelling Bee Competition Winners Awarded",
+      "titleAr": "تتويج الفائزين بمسابقة التهجئة السنوية Spelling Bee",
+      "contentEn": "Our elementary and middle-school English outstanding spellers gathered for the final rounds of our English Spelling Bee Championship. Congratulations to our grade 5 & 8 champions who demonstrated beautiful speech, fast vocabulary recall, and high composure on stage. Special thanks to our teachers and parent committees who supported this brilliant exercise in academic commitment.",
+      "contentAr": "اجتمع طلابنا ومعلمونا لتتويج الفائزين بالنهائيات ببطولة التهجئة السنوية للغة الإنجليزية Spelling Bee للبراعم الطموحة. نهنئ أبطال الصفين الخامس والثامن على آدائهم المتميز وثباتهم الرائع على المسرح. كل الشكر والتقدير لجهود المعلمين الداعمة ولجان أولياء الأمور.",
+      "descriptionEn": "Congratulations to our stars across elementary and middle school spelling tiers.",
+      "descriptionAr": "نهنئ نجومنا الفائزين في مسابقة التهجئة للغة الإنجليزية السنوية.",
+      "image": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80&w=800",
+      "date": "2026-05-18",
+      "categoryEn": "Academics",
+      "categoryAr": "الأنشطة الأكاديمية",
+      "authorEn": "English Department",
+      "authorAr": "قسم اللغة الإنجليزية",
+      "published": true,
+      "views": 95
+    },
+    {
+      "id": "post-3",
+      "titleEn": "Highlights of our Mother's Day Assembly",
+      "titleAr": "مقتطفات من حفل تكريم الأمهات السنوي بالأكاديمية",
+      "contentEn": "Our primary and KG levels presented a heartwarming assembly filled with Arabic & English songs, custom canvas painting galleries, and interactive skits dedicated to the lovely mothers of First Academy School. The morning was wrapped in broad smiles and joyful laughter. We salute all parents for being the foundation of our vibrant educational community.",
+      "contentAr": "قدم أطفال قسم الروضة والمرحلة الأساسية حفلاً مبهجاً مفعماً بالابتسامات والأناشيد الجميلة وصناعة لوحات الهدايا اليدوية احتفالاً وتكريماً للأمهات العزيزات في روضة ومدارس الأكاديمية الأولى. كانت احتفالية مميزة ودافئة.",
+      "descriptionEn": "A joyful morning of music and drama honoring mothers of First Academy School.",
+      "descriptionAr": "أطفال الروضة يشاركون في تزيين اللوحات والأناشيد تكريماً لأمهاتنا العزيزات.",
+      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
+      "date": "2026-03-21",
+      "categoryEn": "Events",
+      "categoryAr": "الفعاليات المدرسية",
+      "authorEn": "KG Administration",
+      "authorAr": "إدارة الروضة",
+      "published": true,
+      "views": 210
+    }
+  ],
+  "slides": [
+    {
+      "id": "slide-1",
+      "titleEn": "First Academy School Campus",
+      "titleAr": "حرم الأكاديمية الأولى والملاعب الخضراء",
+      "subtitleEn": "Extensive grass turf football field and safe modern campus buildings.",
+      "subtitleAr": "ملاعب عشبية خضراء خارجية متكاملة وبيئة تعليمية تربوية آمنة وحافلة لمستقبل واعد.",
+      "image": "https://images.unsplash.com/photo-1589487391730-58f20eb2c308?auto=format&fit=crop&q=80&w=1600",
+      "link": "#about",
+      "order": 1
+    },
+    {
+      "id": "slide-2",
+      "titleEn": "Welcome Back to School Greetings",
+      "titleAr": "مرحباً بأبطالنا وبراعمنا في العام الجديد",
+      "subtitleEn": "Smiles, custom booklets, stories, back-to-school banners, and high academic excitement.",
+      "subtitleAr": "نستقبل العام الدراسي بكل همة ونشاط مع توزيع القصص والكتب والأنشطة الترفيهية المبهجة.",
+      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=1600",
+      "link": "#news",
+      "order": 2
+    },
+    {
+      "id": "slide-3",
+      "titleEn": "Joyful Kindergarten & Learning Arch",
+      "titleAr": "قسم الروضة والأقسام التفاعلية للأطفال",
+      "subtitleEn": "Cute happy kindergarteners with colorful helium balloon arches and encouraging classrooms.",
+      "subtitleAr": "فعاليات البراعم والروضة مع زينات البالونات الملونة وبدايات سعيدة ومحفزة لنموهم المتكامل بمساراتنا.",
+      "image": "https://images.unsplash.com/photo-1530210124550-912dc1381cb8?auto=format&fit=crop&q=80&w=1600",
+      "link": "#news",
+      "order": 3
+    },
+    {
+      "id": "slide-4",
+      "titleEn": "Creative School Plays & Mother's Day",
+      "titleAr": "المسرح المدرسي واحتفالية عيد الأم الكبرى",
+      "subtitleEn": "Students performing with hearts and massive white letters under gorgeous spotlights.",
+      "subtitleAr": "نكتشف مواهب أطفالنا على مسرح المدرسة، محتفين بالأم الغالية عبر الفنون والفقرات التربوية المؤثرة.",
+      "image": "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=1600",
+      "link": "#news",
+      "order": 4
+    },
+    {
+      "id": "slide-5",
+      "titleEn": "Sports Development & School Football Team",
+      "titleAr": "الأنشطة الرياضية وفريق كرة القدم المتميّز",
+      "subtitleEn": "Coach-led soccer practices on green playgrounds to build fitness and high athletic spirit.",
+      "subtitleAr": "تدريبات مستمرة لفريق المدرسة لكرة القدم بالملاعب العشبية لبناء اللياقة البدنية والروح الرياضية العالية.",
+      "image": "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&q=80&w=1600",
+      "link": "#news",
+      "order": 5
+    }
+  ],
+  "settings": {
+    "phone": "065510171",
+    "altPhone": "0796777980",
+    "email": "fas.edu.jo@gmail.com",
+    "notificationEmail": "fas.edu.jo@gmail.com",
+    "addressEn": "Madina Munawwara Street, opposite the Independent Election Commission, Amman, Jordan",
+    "addressAr": "عمان، شارع المدينة المنورة - مقابل الهيئة المستقلة للانتخاب",
+    "workingHoursEn": "Sunday - Thursday: 7:30 AM - 3:00 PM",
+    "workingHoursAr": "من الأحد إلى الخميس: 7:30 صباحاً حتى 3:00 مساءً",
+    "socialFacebook": "https://facebook.com/firstacademyschool",
+    "socialInstagram": "https://instagram.com/firstacademyschool",
+    "socialLinkedin": "https://linkedin.com/company/firstacademyschool",
+    "socialYoutube": "https://youtube.com/firstacademyschool",
+    "socialX": "https://twitter.com/fas_amman"
+  },
+  "messages": [
+    {
+      "id": "msg-1",
+      "name": "Tareq Al-Saeed",
+      "email": "tareq.saeed@gmail.com",
+      "phone": "+962 7 8100 2030",
+      "subject": "Admission Inquiry - Grade 3 National",
+      "message": "Hello admissions, I would like to inquire about the vacant seats for third grade in the national stream, and the annual school fees. Best regards.",
+      "createdAt": "2026-05-24T10:30:00Z",
+      "isRead": false
+    },
+    {
+      "id": "msg-2",
+      "name": "Lina Kawar",
+      "email": "lina.kawar@outlook.com",
+      "phone": "+962 7 9450 6789",
+      "subject": "IGCSE Chemistry Lab Setup",
+      "message": "I am interested in transferring my daughter to the Cambridge IGCSE program in grade 9. I would love to schedule a visit to look at the chemistry and physics labs. Thank you.",
+      "createdAt": "2026-05-25T08:15:00Z",
+      "isRead": true
+    }
+  ],
+  "media": [
+    {
+      "id": "media-1",
+      "name": "campus_facade.jpg",
+      "url": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      "size": 145000,
+      "type": "image/jpeg",
+      "uploadedAt": "2026-05-10T11:00:00Z",
+      "optimized": true,
+      "width": 1200,
+      "height": 800
+    },
+    {
+      "id": "media-2",
+      "name": "classroom_lab.jpg",
+      "url": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80&w=800",
+      "size": 98000,
+      "type": "image/jpeg",
+      "uploadedAt": "2026-05-12T14:30:00Z",
+      "optimized": true,
+      "width": 1200,
+      "height": 800
+    },
+    {
+      "id": "media-3",
+      "name": "early_learning_grade.jpg",
+      "url": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
+      "size": 112000,
+      "type": "image/jpeg",
+      "uploadedAt": "2026-05-14T09:12:00Z",
+      "optimized": true,
+      "width": 1200,
+      "height": 800
+    }
+  ],
+  "users": [
+    {
+      "id": "u-1",
+      "username": "nizar_admin",
+      "email": "nizar.abuahmad@gmail.com",
+      "role": "Admin",
+      "createdAt": "2026-05-01T09:00:00Z",
+      "salt": "c86f8e8c2a4da96059234ade23cc63f2",
+      "passwordHash": "410107bd14bd13aa2170b54c1ef09516d3bb8008719add09bcdf0c7c966fd5d6",
+      "password": ""
+    },
+    {
+      "id": "u-2",
+      "username": "samira_editor",
+      "email": "editor@firstacademy.edu.jo",
+      "role": "Editor",
+      "createdAt": "2026-05-15T12:00:00Z",
+      "salt": "edb3727540f1641d046506a0b86d3ca8",
+      "passwordHash": "f5d1335a5348c55aea6e011a690049d68e0740a91edd6c958a436bc017efe626",
+      "password": ""
+    },
+    {
+      "id": "u-3",
+      "username": "guest_viewer",
+      "email": "guest@firstacademy.edu.jo",
+      "role": "Viewer",
+      "createdAt": "2026-05-19T10:45:00Z",
+      "salt": "268267af4517e02201a12753d17560af",
+      "passwordHash": "4ac7ac6c809b5c65d899dd012eb7249f8f630f06dac590c360088f7040e95687",
+      "password": ""
+    }
+  ]
+}

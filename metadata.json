@@ -1,0 +1,6 @@
+{
+  "name": "First Academy School Amman",
+  "description": "A highly polished, bilingual (English-Arabic) dual curriculum school website with an intuitive role-based CMS administrative dashboard, media center, and slider manager.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
