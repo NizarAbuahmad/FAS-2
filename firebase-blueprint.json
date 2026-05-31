@@ -1,0 +1,186 @@
+{
+  "entities": {
+    "Post": {
+      "title": "Post",
+      "description": "A blog post or news announcement",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "contentAr": { "type": "string" },
+        "descriptionEn": { "type": "string" },
+        "descriptionAr": { "type": "string" },
+        "image": { "type": "string" },
+        "date": { "type": "string" },
+        "authorEn": { "type": "string" },
+        "authorAr": { "type": "string" },
+        "published": { "type": "boolean" },
+        "views": { "type": "number" }
+      },
+      "required": ["id", "titleEn", "titleAr"]
+    },
+    "CarouselSlide": {
+      "title": "CarouselSlide",
+      "description": "A slide for the homepage carousel banner",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "subtitleEn": { "type": "string" },
+        "subtitleAr": { "type": "string" },
+        "image": { "type": "string" },
+        "link": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["id", "image"]
+    },
+    "ContactDetails": {
+      "title": "ContactDetails",
+      "description": "Global school contact details and links",
+      "type": "object",
+      "properties": {
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "addressEn": { "type": "string" },
+        "addressAr": { "type": "string" },
+        "mapUrl": { "type": "string" },
+        "facebook": { "type": "string" },
+        "instagram": { "type": "string" },
+        "youtube": { "type": "string" }
+      }
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "An inquiry message received via the contact form",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "name", "phone", "message"]
+    },
+    "MediaAsset": {
+      "title": "MediaAsset",
+      "description": "An uploaded media asset or photo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "size": { "type": "number" },
+        "type": { "type": "string" },
+        "uploadedAt": { "type": "string" },
+        "optimized": { "type": "boolean" },
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      },
+      "required": ["id", "name", "url"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "A school administrator, editor, or viewer account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "salt": { "type": "string" },
+        "passwordHash": { "type": "string" }
+      },
+      "required": ["id", "username", "role"]
+    },
+    "GalleryItem": {
+      "title": "GalleryItem",
+      "description": "An item in the school activities photo and video gallery",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "image": { "type": "string" },
+        "categoryEn": { "type": "string" },
+        "categoryAr": { "type": "string" },
+        "order": { "type": "number" },
+        "videoUrl": { "type": "string" },
+        "offsetX": { "type": "number" },
+        "offsetY": { "type": "number" }
+      },
+      "required": ["id", "titleEn", "titleAr", "image"]
+    },
+    "CustomPage": {
+      "title": "CustomPage",
+      "description": "A custom page of information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "titleAr": { "type": "string" },
+        "slug": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "contentAr": { "type": "string" },
+        "published": { "type": "boolean" }
+      },
+      "required": ["id", "titleEn", "titleAr", "slug"]
+    },
+    "SiteText": {
+      "title": "SiteText",
+      "description": "A customizable site translation string key-value pair",
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "valueEn": { "type": "string" },
+        "valueAr": { "type": "string" }
+      },
+      "required": ["key", "valueEn", "valueAr"]
+    }
+  },
+  "firestore": {
+    "posts": {
+      "schema": "Post",
+      "description": "Collection of school blog posts"
+    },
+    "slides": {
+      "schema": "CarouselSlide",
+      "description": "Collection of carousel slider banners"
+    },
+    "settings": {
+      "schema": "ContactDetails",
+      "description": "Central contact and social profiles settings"
+    },
+    "messages": {
+      "schema": "ContactMessage",
+      "description": "School inquiry contact messages"
+    },
+    "media": {
+      "schema": "MediaAsset",
+      "description": "Asset files inside media manager"
+    },
+    "users": {
+      "schema": "AdminUser",
+      "description": "CMS authenticated profiles list"
+    },
+    "gallery": {
+      "schema": "GalleryItem",
+      "description": "Activities photo library collection items"
+    },
+    "pages": {
+      "schema": "CustomPage",
+      "description": "School bespoke custom layout pages"
+    },
+    "siteTexts": {
+      "schema": "SiteText",
+      "description": "Translations and customizable copy overrides"
+    }
+  }
+}

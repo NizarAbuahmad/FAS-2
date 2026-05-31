@@ -11,6 +11,8 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import { createServer as createViteServer } from "vite";
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { 
   Post, 
   CarouselSlide, 
@@ -21,6 +23,98 @@ import {
   AnalyticsSummary,
   GalleryItem
 } from "./src/types";
+
+// Initialize Firebase SDK using committed workspace config
+const firebaseConfig = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf-8")
+);
+const firebaseApp = initializeApp(firebaseConfig);
+const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+
+// Helper to fetch collection items in Firestore
+async function fetchCollection(collectionName: string): Promise<any[]> {
+  try {
+    const colRef = collection(firestoreDb, collectionName);
+    const snap = await getDocs(colRef);
+    const results: any[] = [];
+    snap.forEach((doc) => {
+      results.push({ ...doc.data() });
+    });
+    return results;
+  } catch (err) {
+    console.error(`[Firestore] Error fetching collection ${collectionName}:`, err);
+    return [];
+  }
+}
+
+// Helper to fetch settings from Firestore
+async function fetchSettings(): Promise<any> {
+  try {
+    const docRef = doc(firestoreDb, "settings", "main");
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+  } catch (err) {
+    console.error("[Firestore] Error fetching settings:", err);
+  }
+  return null;
+}
+
+// Helper to save settings to Firestore
+async function writeSettings(data: any): Promise<void> {
+  try {
+    const docRef = doc(firestoreDb, "settings", "main");
+    await setDoc(docRef, data);
+  } catch (err) {
+    console.error("[Firestore] Error writing settings:", err);
+  }
+}
+
+// Helper to save document inside collection
+async function saveDocToFirestore(collectionName: string, docId: string, data: any): Promise<void> {
+  try {
+    const docRef = doc(firestoreDb, collectionName, docId);
+    await setDoc(docRef, data);
+  } catch (err) {
+    console.error(`[Firestore] Error saving document ${docId} to collection ${collectionName}:`, err);
+  }
+}
+
+// Helper to delete document inside collection
+async function deleteDocFromFirestore(collectionName: string, docId: string): Promise<void> {
+  try {
+    const docRef = doc(firestoreDb, collectionName, docId);
+    await deleteDoc(docRef);
+    console.log(`[Firestore] Deleted document ${docId} from collection ${collectionName} successfully.`);
+  } catch (err) {
+    console.error(`[Firestore] Error deleting document ${docId} from collection ${collectionName}:`, err);
+  }
+}
+
+// Reconcile and purge deleted items from Firestore
+async function reconcileCollection(collectionName: string, localItems: any[], idField: string = "id") {
+  try {
+    const colRef = collection(firestoreDb, collectionName);
+    const snap = await getDocs(colRef);
+    const localIds = new Set(localItems.map(item => item[idField]).filter(Boolean));
+    const deletePromises: Promise<any>[] = [];
+    
+    snap.forEach((doc) => {
+      const docId = doc.id;
+      if (!localIds.has(docId)) {
+        deletePromises.push(deleteDoc(doc.ref));
+      }
+    });
+    
+    if (deletePromises.length > 0) {
+      await Promise.all(deletePromises);
+      console.log(`[Firestore-Sync] Reconciled collection ${collectionName}: Cleaned up ${deletePromises.length} deleted/orphaned records.`);
+    }
+  } catch (err) {
+    console.error(`[Firestore-Sync] Reconcile error in ${collectionName}:`, err);
+  }
+}
 
 
 // DB Path
@@ -288,55 +382,78 @@ const DEFAULT_PASSWORDS: Record<string, string> = {
 };
 
 // Ensure db file exists and is validated with strict cryptographic hashing schemas
-function loadDB() {
+async function loadDB() {
   try {
-    let dbStore: any;
-    if (fs.existsSync(DB_FILE)) {
-      const data = fs.readFileSync(DB_FILE, "utf-8");
-      dbStore = JSON.parse(data);
-    } else {
+    console.log("[Firestore-Sync] Syncing load database from persistent Cloud Firestore...");
+    let dbStore: any = {
+      posts: [],
+      slides: [],
+      settings: {},
+      messages: [],
+      media: [],
+      users: [],
+      gallery: [],
+      pages: [],
+      siteTexts: []
+    };
+
+    // Connect and retrieve existing CMS administrator users configuration
+    const firestoreUsers = await fetchCollection("users");
+
+    if (firestoreUsers.length === 0) {
+      console.log("[Firestore-Sync] Firebase store is fresh/empty. Initiating initial db backup seed bootstrap...");
       dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
+
+      // Attempt loading from local seed file backup in memory
+      if (fs.existsSync(DB_FILE)) {
+        try {
+          const fileData = fs.readFileSync(DB_FILE, "utf-8");
+          const parsed = JSON.parse(fileData);
+          if (parsed && typeof parsed === "object") {
+            if (Array.isArray(parsed.posts)) dbStore.posts = parsed.posts;
+            if (Array.isArray(parsed.slides)) dbStore.slides = parsed.slides;
+            if (parsed.settings) dbStore.settings = parsed.settings;
+            if (Array.isArray(parsed.messages)) dbStore.messages = parsed.messages;
+            if (Array.isArray(parsed.media)) dbStore.media = parsed.media;
+            if (Array.isArray(parsed.users)) dbStore.users = parsed.users;
+            if (Array.isArray(parsed.gallery)) dbStore.gallery = parsed.gallery;
+            if (Array.isArray(parsed.pages)) dbStore.pages = parsed.pages;
+            if (Array.isArray(parsed.siteTexts)) dbStore.siteTexts = parsed.siteTexts;
+          }
+        } catch (fErr) {
+          console.warn("[Firestore-Sync] Loading local db.json file failed during boostrap:", fErr);
+        }
+      }
+
+      // Bulk save elements to cloud collections
+      const seedPromises: Promise<any>[] = [];
+      for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+      for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+      seedPromises.push(writeSettings(dbStore.settings));
+      for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+      for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+      for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+      for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+      for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+      for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+
+      await Promise.all(seedPromises);
+      console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
+    } else {
+      // Load current Cloud contents
+      dbStore.posts = await fetchCollection("posts");
+      dbStore.slides = await fetchCollection("slides");
+      dbStore.settings = (await fetchSettings()) || { ...DEFAULT_DB.settings };
+      dbStore.messages = await fetchCollection("messages");
+      dbStore.media = await fetchCollection("media");
+      dbStore.gallery = await fetchCollection("gallery");
+      dbStore.pages = await fetchCollection("pages");
+      dbStore.siteTexts = await fetchCollection("siteTexts");
+      dbStore.users = firestoreUsers;
     }
 
     // Auto-migrate user logins for secure password verification
     let modified = false;
-    if (!dbStore.posts || !Array.isArray(dbStore.posts) || dbStore.posts.length === 0) {
-      dbStore.posts = JSON.parse(JSON.stringify(DEFAULT_DB.posts));
-      modified = true;
-    }
-    if (!dbStore.slides || !Array.isArray(dbStore.slides) || dbStore.slides.length === 0) {
-      dbStore.slides = JSON.parse(JSON.stringify(DEFAULT_DB.slides));
-      modified = true;
-    }
-    if (!dbStore.settings) {
-      dbStore.settings = JSON.parse(JSON.stringify(DEFAULT_DB.settings));
-      modified = true;
-    }
-    if (!dbStore.messages || !Array.isArray(dbStore.messages)) {
-      dbStore.messages = [];
-      modified = true;
-    }
-    if (!dbStore.media || !Array.isArray(dbStore.media)) {
-      dbStore.media = [];
-      modified = true;
-    }
-    if (!dbStore.users || !Array.isArray(dbStore.users) || dbStore.users.length === 0) {
-      dbStore.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
-      modified = true;
-    }
-    if (!dbStore.siteTexts || !Array.isArray(dbStore.siteTexts)) {
-      dbStore.siteTexts = [];
-      modified = true;
-    }
-    if (!dbStore.pages || !Array.isArray(dbStore.pages)) {
-      dbStore.pages = [];
-      modified = true;
-    }
-    if (!dbStore.gallery || !Array.isArray(dbStore.gallery) || dbStore.gallery.length === 0) {
-      dbStore.gallery = JSON.parse(JSON.stringify(DEFAULT_DB.gallery));
-      modified = true;
-    }
-
     dbStore.users.forEach((u: any) => {
       const defaultPassword = DEFAULT_PASSWORDS[u.username];
       if (defaultPassword) {
@@ -358,7 +475,11 @@ function loadDB() {
     });
 
     if (modified) {
-      fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+      } catch (fErr) {
+        // Ignore
+      }
     }
 
     return dbStore;
@@ -396,11 +517,67 @@ function authenticateToken(allowedRoles?: string[]) {
   };
 }
 
-function saveDB(data: any) {
+async function saveDB(data: any) {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    // Save to local file backup
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+    } catch (fErr) {
+      // Ignore
+    }
+
+    const promises: Promise<any>[] = [];
+
+    // Posts
+    for (const p of data.posts || []) {
+      if (p && p.id) promises.push(saveDocToFirestore("posts", p.id, p));
+    }
+    // Slides
+    for (const s of data.slides || []) {
+      if (s && s.id) promises.push(saveDocToFirestore("slides", s.id, s));
+    }
+    // Settings
+    if (data.settings) promises.push(writeSettings(data.settings));
+    // Messages
+    for (const m of data.messages || []) {
+      if (m && m.id) promises.push(saveDocToFirestore("messages", m.id, m));
+    }
+    // Media
+    for (const me of data.media || []) {
+      if (me && me.id) promises.push(saveDocToFirestore("media", me.id, me));
+    }
+    // Users
+    for (const u of data.users || []) {
+      if (u && u.id) promises.push(saveDocToFirestore("users", u.id, u));
+    }
+    // Gallery
+    for (const g of data.gallery || []) {
+      if (g && g.id) promises.push(saveDocToFirestore("gallery", g.id, g));
+    }
+    // Pages
+    for (const pa of data.pages || []) {
+      if (pa && pa.id) promises.push(saveDocToFirestore("pages", pa.id, pa));
+    }
+    // SiteTexts
+    for (const st of data.siteTexts || []) {
+      if (st && st.key) promises.push(saveDocToFirestore("siteTexts", st.key, st));
+    }
+
+    await Promise.all(promises);
+    console.log("[Firestore-Sync] Standard cloud write operation completed successfully.");
+
+    // Fire off asynchronous background reconciliation to clean up any deleted/orphaned documents
+    reconcileCollection("posts", data.posts || [], "id");
+    reconcileCollection("slides", data.slides || [], "id");
+    reconcileCollection("messages", data.messages || [], "id");
+    reconcileCollection("media", data.media || [], "id");
+    reconcileCollection("users", data.users || [], "id");
+    reconcileCollection("gallery", data.gallery || [], "id");
+    reconcileCollection("pages", data.pages || [], "id");
+    reconcileCollection("siteTexts", data.siteTexts || [], "key");
+
   } catch (err) {
-    console.error("Error writing database state to disk:", err);
+    console.error("[Firestore-Sync] Error during saveDB sync flow:", err);
   }
 }
 
@@ -725,7 +902,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Initialize DB on boot
-  let dbStore = loadDB();
+  let dbStore = await loadDB();
 
   // Log active state
   console.log(`FAS Amman Fullstack CMS database loaded with: ${dbStore.posts.length} posts, ${dbStore.slides.length} slides, ${dbStore.messages.length} inquiries.`);
