@@ -702,11 +702,17 @@ export default function App() {
         setLoginUserId("");
         setSecretKey("");
       } else {
-        const errData = await res.json();
-        setLoginError(errData.error || (isRtl ? "كلمة المرور المدخلة غير صحيحة!" : "Incorrect secure access credentials."));
+        let errMessage = "";
+        try {
+          const errData = await res.json();
+          errMessage = errData.error;
+        } catch (jsonErr) {
+          errMessage = `HTTP Error ${res.status}: ${res.statusText || "Unauthorized access"}`;
+        }
+        setLoginError(errMessage || (isRtl ? "كلمة المرور المدخلة غير صحيحة!" : "Incorrect secure access credentials."));
       }
     } catch (err) {
-      setLoginError(isRtl ? "فشل الاتصال المباشر بقاعدة البيانات لتسجيل الدخول." : "Connection to backend database authentication pool lost.");
+      setLoginError(isRtl ? "حدث خطأ غير متوقع أثناء محاولة تسجيل الدخول. يرجى المحاولة لاحقاً." : "An unexpected error occurred during login. Please try again.");
     }
   };
 

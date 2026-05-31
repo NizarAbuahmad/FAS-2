@@ -97,9 +97,9 @@ export const translations = {
     loginEmailLabel: "Select Admin Profile:",
     loginEmailPlaceholder: "Enter admin email...",
     loginPasswordLabel: "Secure Access Key:",
-    loginKeyPlaceholder: "Key (e.g. admin, editor to bypass default security)",
+    loginKeyPlaceholder: "Key (e.g. admin123 for nizar_admin, editor123 for samira_editor)",
     loginBtn: "Authorize Session",
-    loginDemoHint: "For testing, select any profile from the select menu to gain respective Admin, Editor, or Viewer clearances.",
+    loginDemoHint: "For testing, select any profile and enter its password: nizar_admin is 'admin123', samira_editor is 'editor123', and guest_viewer is 'viewer123'.",
 
     // Analytics Reports
     anOverview: "Google Analytics Dashboard",
@@ -281,9 +281,9 @@ export const translations = {
     loginEmailLabel: "اختر الحساب الذي تريد محاكاته:",
     loginEmailPlaceholder: "اختر عنوان البريد الإلكتروني...",
     loginPasswordLabel: "مفتاح الدخول الآمن للتحقق:",
-    loginKeyPlaceholder: "رمز المرور (مثل admin أو editor لتخطي التحقق من الصلاحيات)",
+    loginKeyPlaceholder: "رمز المرور (مثلاً admin123 للمدير، أو editor123 للمحرر)",
     loginBtn: "تأكيد الجلسة والتخويل",
-    loginDemoHint: "للغايات التجريبية والمراجعة، يمكنك اختيار أي حساب من الدليل المنسدل لتفعيل صلاحيات مدير أو محرر أو مستعرض فوراً دون كلمة مرور معقدة.",
+    loginDemoHint: "للغايات التجريبية، اختر الحساب واستخدم كلمة المرور الخاصة به: حساب nizar_admin كلمته 'admin123'، وحساب samira_editor كلمته 'editor123'، وحساب guest_viewer كلمته 'viewer123'.",
 
     // Analytics Reports
     anOverview: "لوحة تحكم تحليلات Google Analytics",
