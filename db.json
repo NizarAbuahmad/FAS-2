@@ -121,6 +121,26 @@
   },
   "messages": [
     {
+      "id": "msg-1780237220429",
+      "name": "Nizar Test Admin",
+      "email": "nizar.abuahmad@gmail.com",
+      "phone": "962790615095",
+      "subject": "Class A",
+      "message": "Hello world from production build test runner",
+      "createdAt": "2026-05-31T14:20:20.429Z",
+      "isRead": false
+    },
+    {
+      "id": "msg-1780237110524",
+      "name": "Nizar Abu Ahmad",
+      "email": "nizar.abuahmad@gmail.com",
+      "phone": "962790615095",
+      "subject": "Enquiry",
+      "message": "Hello world",
+      "createdAt": "2026-05-31T14:18:30.524Z",
+      "isRead": false
+    },
+    {
       "id": "msg-1",
       "name": "Tareq Al-Saeed",
       "email": "tareq.saeed@gmail.com",
@@ -206,6 +226,55 @@
       "salt": "268267af4517e02201a12753d17560af",
       "passwordHash": "4ac7ac6c809b5c65d899dd012eb7249f8f630f06dac590c360088f7040e95687",
       "password": ""
+    }
+  ],
+  "siteTexts": [],
+  "pages": [],
+  "gallery": [
+    {
+      "id": "gallery-1",
+      "titleEn": "Modern Interactive Computing Lab",
+      "titleAr": "مختبر الحاسوب والذكاء الاصطناعي الحديث",
+      "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&q=80&w=800",
+      "categoryEn": "Facilities",
+      "categoryAr": "المرافق المدرسية",
+      "order": 1
+    },
+    {
+      "id": "gallery-2",
+      "titleEn": "Advanced Chemistry & Sciences Lab",
+      "titleAr": "مختبر الكيمياء والعلوم التطبيقية المتقدم",
+      "image": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=800",
+      "categoryEn": "Facilities",
+      "categoryAr": "المرافق المدرسية",
+      "order": 2
+    },
+    {
+      "id": "gallery-3",
+      "titleEn": "Spring Sports Tournament Highlights",
+      "titleAr": "مقتطفات من مسابقة الدوري الرياضي المدرسي",
+      "image": "https://images.unsplash.com/photo-1517649763962-0c623066013b?auto=format&fit=crop&q=80&w=800",
+      "categoryEn": "Activities",
+      "categoryAr": "الأنشطة المدرسية",
+      "order": 3
+    },
+    {
+      "id": "gallery-4",
+      "titleEn": "Kindergarten Creativity and Drawing Corner",
+      "titleAr": "ركن الفنون والإبداع لقسم الروضة والتمهيدي",
+      "image": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
+      "categoryEn": "Activities",
+      "categoryAr": "الأنشطة المدرسية",
+      "order": 4
+    },
+    {
+      "id": "gallery-5",
+      "titleEn": "The High School Central Library Reading Hall",
+      "titleAr": "قاعة المطالعة بالمكتبة المركزية لأكاديميتنا",
+      "image": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&q=80&w=800",
+      "categoryEn": "Facilities",
+      "categoryAr": "المرافق المدرسية",
+      "order": 5
     }
   ]
 }

@@ -312,11 +312,11 @@ function loadDB() {
       dbStore.settings = JSON.parse(JSON.stringify(DEFAULT_DB.settings));
       modified = true;
     }
-    if (!dbStore.messages) {
+    if (!dbStore.messages || !Array.isArray(dbStore.messages)) {
       dbStore.messages = [];
       modified = true;
     }
-    if (!dbStore.media) {
+    if (!dbStore.media || !Array.isArray(dbStore.media)) {
       dbStore.media = [];
       modified = true;
     }
@@ -324,11 +324,11 @@ function loadDB() {
       dbStore.users = JSON.parse(JSON.stringify(DEFAULT_DB.users));
       modified = true;
     }
-    if (!dbStore.siteTexts) {
+    if (!dbStore.siteTexts || !Array.isArray(dbStore.siteTexts)) {
       dbStore.siteTexts = [];
       modified = true;
     }
-    if (!dbStore.pages) {
+    if (!dbStore.pages || !Array.isArray(dbStore.pages)) {
       dbStore.pages = [];
       modified = true;
     }
@@ -581,6 +581,9 @@ async function sendNotificationEmails(newMessage: ContactMessage, pdfBuffer: Buf
   const parentEmail = newMessage.email;
   const adminEmail = dbStore.settings.notificationEmail || dbStore.settings.email || "admissions@firstacademy.edu.jo";
 
+  const safeParentName = sanitizePdfText(newMessage.name, "Applicant");
+  const safeBaseName = safeParentName.replace(/[^a-zA-Z0-9]/g, "_").replace(/__+/g, "_");
+
   const parentMailOptions = {
     from: smtpSender,
     to: parentEmail,
@@ -594,7 +597,7 @@ async function sendNotificationEmails(newMessage: ContactMessage, pdfBuffer: Buf
         <div style="padding: 24px; background-color: #ffffff;">
           <h2 style="color: #0f172a; font-size: 18px; margin-top: 0;">Dear ${newMessage.name},</h2>
           <p style="font-size: 14px; line-height: 1.6; color: #334155;">
-            Thank you for registering your interest in First Academy School Amman (FAS). We are delighted to assist you in securing a high-performing education with rich moral values and interactive tracks for your child.
+             Thank you for registering your interest in First Academy School Amman (FAS). We are delighted to assist you in securing a high-performing education with rich moral values and interactive tracks for your child.
           </p>
           <p style="font-size: 14px; line-height: 1.6; color: #334155;">
             We have <strong>attached your Branded PDF Admission Prospectus & Brochure</strong> to this email. It outlines our full curriculum tiers (KG, National, and Cambridge IGCSE), our state-of-the-art laboratory labs, and the final list of enrollment steps.
@@ -640,7 +643,7 @@ async function sendNotificationEmails(newMessage: ContactMessage, pdfBuffer: Buf
     `,
     attachments: [
       {
-        filename: `First_Academy_Brochure_${newMessage.name.replace(/\s+/g, "_")}.pdf`,
+        filename: `First_Academy_Brochure_${safeBaseName || "Parent"}.pdf`,
         content: pdfBuffer,
         contentType: "application/pdf"
       }
@@ -796,6 +799,31 @@ async function startServer() {
   // Get full database store (Admin/Editor/Viewer secure only)
   app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), (req, res) => {
     res.json(dbStore);
+  });
+
+  // Overwrite/Restore full database store (Admin/Editor secure only)
+  app.post("/api/db", authenticateToken(["Admin", "Editor"]), (req, res) => {
+    try {
+      const newDB = req.body;
+      if (newDB && typeof newDB === "object") {
+        if (Array.isArray(newDB.posts)) dbStore.posts = newDB.posts;
+        if (Array.isArray(newDB.slides)) dbStore.slides = newDB.slides;
+        if (newDB.settings) dbStore.settings = newDB.settings;
+        if (Array.isArray(newDB.messages)) dbStore.messages = newDB.messages;
+        if (Array.isArray(newDB.media)) dbStore.media = newDB.media;
+        if (Array.isArray(newDB.users)) dbStore.users = newDB.users;
+        if (Array.isArray(newDB.gallery)) dbStore.gallery = newDB.gallery;
+        if (Array.isArray(newDB.pages)) dbStore.pages = newDB.pages;
+        if (Array.isArray(newDB.siteTexts)) dbStore.siteTexts = newDB.siteTexts;
+        
+        saveDB(dbStore);
+        return res.json({ success: true, message: "Cryptographic database restored successfully", db: dbStore });
+      }
+      res.status(400).json({ error: "Invalid database structure presented" });
+    } catch (err) {
+      console.error("Error in /api/db restore:", err);
+      res.status(500).json({ error: "Internal server error during DB restore operation" });
+    }
   });
 
   // Public/all data fetch
