@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { translations } from "../utils/translations";
 import { GalleryItem } from "../types";
 import { 
@@ -18,22 +18,163 @@ import {
   Eye, 
   X, 
   Filter,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+  Upload,
+  Save,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface BriefIntroProps {
   currentLang: "en" | "ar";
   gallery: GalleryItem[];
+  currentUser?: any;
+  onSaveGalleryItem?: (item: Partial<GalleryItem>) => Promise<boolean>;
+  onDeleteGalleryItem?: (id: string) => Promise<boolean>;
+  onUploadMedia?: (media: { name: string; type: string; size: number; content: string }) => Promise<any>;
 }
 
-export default function BriefIntro({ currentLang, gallery }: BriefIntroProps) {
+export default function BriefIntro({ 
+  currentLang, 
+  gallery,
+  currentUser,
+  onSaveGalleryItem,
+  onDeleteGalleryItem,
+  onUploadMedia
+}: BriefIntroProps) {
   const t = translations[currentLang];
   const isRtl = currentLang === "ar";
+
+  const canManage = currentUser && (currentUser.role === "Admin" || currentUser.role === "Editor");
+
+  // Open / Close management modal states
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Partial<GalleryItem> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Photo Gallery State
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [lightboxItem, setLightboxItem] = useState<GalleryItem | null>(null);
+
+  const handleOpenAddForm = () => {
+    setEditingItem({
+      titleEn: "",
+      titleAr: "",
+      image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      categoryEn: "Activities",
+      categoryAr: "الأنشطة المدرسية",
+      order: (gallery?.length || 0) + 1
+    });
+    setErrorMessage("");
+    setIsFormOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (currentUser?.role === "Viewer") {
+      setErrorMessage(t.umRestriction || "Insufficient permissions.");
+      return;
+    }
+    if (e.target.files && e.target.files[0] && onUploadMedia) {
+      const file = e.target.files[0];
+      if (!file.type.startsWith("image/")) {
+        setErrorMessage(isRtl ? "الملف يجب أن يكون صورة فقط." : "Only image files are permitted.");
+        return;
+      }
+      setIsUploading(true);
+      setErrorMessage("");
+      try {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64Content = event.target?.result as string;
+          const uploadedAsset = await onUploadMedia({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            content: base64Content
+          });
+          if (uploadedAsset && uploadedAsset.url) {
+            setEditingItem((prev) => prev ? { ...prev, image: uploadedAsset.url } : null);
+          } else {
+            setErrorMessage(isRtl ? "فشل رفع الصورة على الخادم." : "Server error uploading image.");
+          }
+          setIsUploading(false);
+        };
+        reader.onerror = () => {
+          setErrorMessage(isRtl ? "خطأ في قراءة ملف الصورة." : "Error reading image file.");
+          setIsUploading(false);
+        };
+        reader.readAsDataURL(file);
+      } catch (err) {
+        setErrorMessage(isRtl ? "حدث خطأ أثناء معالجة الصورة." : "Error processing image.");
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handleFormInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    if (name === "categoryEn") {
+      const isFacilities = value === "Facilities";
+      setEditingItem((prev) => (prev ? {
+        ...prev,
+        categoryEn: value,
+        categoryAr: isFacilities ? "المرافق المدرسية" : "الأنشطة المدرسية"
+      } : null));
+    } else {
+      setEditingItem((prev) => (prev ? { ...prev, [name]: name === "order" ? parseInt(value) || 1 : value } : null));
+    }
+  };
+
+  const handleSaveItem = async () => {
+    if (currentUser?.role === "Viewer") {
+      setErrorMessage(t.umRestriction || "Insufficient permissions.");
+      return;
+    }
+    if (!onSaveGalleryItem || !editingItem) return;
+    if (!editingItem.titleEn || !editingItem.titleAr) {
+      setErrorMessage(isRtl ? "يرجى كتابة العنوان باللغتين العربية والانجليزية" : "Title in both English and Arabic is required.");
+      return;
+    }
+    if (!editingItem.image) {
+      setErrorMessage(isRtl ? "يرجى تحديد أو رفع صورة" : "Please select or upload an image.");
+      return;
+    }
+    setIsSaving(true);
+    setErrorMessage("");
+    try {
+      const success = await onSaveGalleryItem(editingItem);
+      if (success) {
+        setIsFormOpen(false);
+        setEditingItem(null);
+      } else {
+        setErrorMessage(isRtl ? "فشلت عملية حفظ الصورة/النشاط." : "Failed to save the photo/activity.");
+      }
+    } catch (err) {
+      setErrorMessage(isRtl ? "حدث خطأ غير متوقع." : "An unexpected error occurred.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteItem = async (e: React.MouseEvent, itemId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!onDeleteGalleryItem) return;
+    const confirmMsg = isRtl
+      ? "هل أنت متأكد من رغبتك في حذف هذه الصورة/النشاط نهائياً؟"
+      : "Are you sure you want to permanently delete this photo/activity?";
+    if (window.confirm(confirmMsg)) {
+      await onDeleteGalleryItem(itemId);
+    }
+  };
 
   const highlightingFeatures = [
     {
@@ -242,7 +383,7 @@ export default function BriefIntro({ currentLang, gallery }: BriefIntroProps) {
             </div>
 
             {/* Local Pill Filtering Buttons */}
-            <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+            <div className="flex flex-wrap gap-2 justify-center md:justify-start items-center">
               {categories.map((cat) => (
                 <button
                   key={cat.id}
@@ -256,6 +397,16 @@ export default function BriefIntro({ currentLang, gallery }: BriefIntroProps) {
                   {cat.label}
                 </button>
               ))}
+
+              {canManage && (
+                <button
+                  onClick={handleOpenAddForm}
+                  className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white border border-transparent shadow shadow-emerald-600/10 transition-all flex items-center gap-1.5 hover:scale-105 focus:outline-none"
+                >
+                  <Plus size={14} className="flex-shrink-0" />
+                  {isRtl ? "إضافة صورة/فعالية جديدة" : "Add Photo/Activity"}
+                </button>
+              )}
             </div>
           </div>
 
@@ -301,6 +452,17 @@ export default function BriefIntro({ currentLang, gallery }: BriefIntroProps) {
                       <span className="absolute top-4 left-4 right-auto text-[10px] font-extrabold uppercase bg-[#1565C0]/90 text-white backdrop-blur px-3 py-1 rounded-full border border-white/20">
                         {isRtl ? item.categoryAr : item.categoryEn}
                       </span>
+
+                      {/* Explicit inline delete button */}
+                      {canManage && (
+                        <button
+                          onClick={(e) => handleDeleteItem(e, item.id)}
+                          className="absolute top-4 right-4 z-40 p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full transition-all shadow-md hover:scale-110 flex items-center justify-center border border-white/25 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                          title={isRtl ? "حذف" : "Delete"}
+                        >
+                          <Trash2 size={13} className="text-white" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Footer text content of image cards */}
@@ -368,6 +530,182 @@ export default function BriefIntro({ currentLang, gallery }: BriefIntroProps) {
                     className="px-5 py-2 text-xs bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-100 transition"
                   >
                     {isRtl ? "إغلاق" : "Close Viewer"}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* --- DYNAMIC ADD/EDIT FORM MODAL FOR GALLERY ITEMS --- */}
+        <AnimatePresence>
+          {isFormOpen && editingItem && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="relative max-w-lg w-full bg-[#18181b] border border-white/10 rounded-3xl shadow-2xl overflow-hidden p-6 text-white space-y-6"
+                initial={{ scale: 0.95, y: 15 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 15 }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-4 text-start">
+                  <h3 className="text-lg font-black flex items-center gap-2">
+                    <Sparkles className="text-yellow-400" size={18} />
+                    {isRtl ? "إضافة صورة / نشاط للمدرسة" : "Add Gallery Photo / Activity"}
+                  </h3>
+                  <button
+                    onClick={() => setIsFormOpen(false)}
+                    className="p-1.5 hover:bg-white/10 text-gray-400 hover:text-white rounded-full transition focus:outline-none"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Error Banner */}
+                {errorMessage && (
+                  <div className="p-3 bg-red-950/40 border border-red-500/20 text-red-200 text-xs rounded-xl flex items-center gap-2 font-medium text-start">
+                    <AlertCircle size={14} className="flex-shrink-0 text-red-400" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* Form fields */}
+                <div className="space-y-4 text-start">
+                  {/* Category Field */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "التصنيف / القسم" : "Category"}
+                    </label>
+                    <select
+                      name="categoryEn"
+                      value={editingItem.categoryEn || "Activities"}
+                      onChange={handleFormInputChange}
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-500 transition-colors"
+                    >
+                      <option value="Activities">{isRtl ? "الأنشطة المدرسية" : "Activities"}</option>
+                      <option value="Facilities">{isRtl ? "المرافق المدرسية" : "Facilities"}</option>
+                    </select>
+                  </div>
+
+                  {/* English Caption */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "العنوان بالإنجليزية" : "English Title / Caption"}
+                    </label>
+                    <input
+                      type="text"
+                      name="titleEn"
+                      value={editingItem.titleEn || ""}
+                      onChange={handleFormInputChange}
+                      placeholder="e.g. Science Lab Experiments"
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-sky-500 transition-all font-sans"
+                    />
+                  </div>
+
+                  {/* Arabic Caption */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "العنوان بالعربية" : "Arabic Title / Caption"}
+                    </label>
+                    <input
+                      type="text"
+                      name="titleAr"
+                      value={editingItem.titleAr || ""}
+                      onChange={handleFormInputChange}
+                      placeholder="مثال: التجارب العلمية في المختبر"
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-sky-500 transition-all font-sans"
+                      dir="rtl"
+                    />
+                  </div>
+
+                  {/* Image source / Upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "رابط الصورة او رفع ملف" : "Image URL / File Upload"}
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        name="image"
+                        value={editingItem.image || ""}
+                        onChange={handleFormInputChange}
+                        placeholder="https://images.unsplash.com/..."
+                        className="flex-1 bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-sky-500 transition-all font-sans"
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        type="button"
+                        className="px-3.5 bg-neutral-850 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 border border-white/10"
+                      >
+                        {isUploading ? (
+                          <Loader2 size={14} className="animate-spin text-sky-400" />
+                        ) : (
+                          <Upload size={14} />
+                        )}
+                        {isRtl ? "رفع" : "Upload"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Order Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">
+                      {isRtl ? "الترتيب الصاعد" : "Sort Order"}
+                    </label>
+                    <input
+                      type="number"
+                      name="order"
+                      value={editingItem.order || 1}
+                      onChange={handleFormInputChange}
+                      className="w-full bg-[#111] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-sky-500 transition-all font-mono"
+                    />
+                  </div>
+
+                  {/* Small Preview image */}
+                  {editingItem.image && (
+                    <div className="relative h-24 w-full rounded-xl overflow-hidden bg-black/50 border border-white/10">
+                      <img
+                        src={editingItem.image}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="flex gap-3 justify-end pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => setIsFormOpen(false)}
+                    className="px-4 py-2 text-xs font-bold bg-[#222] hover:bg-[#2a2a2a] rounded-xl text-gray-300 transition-all"
+                  >
+                    {isRtl ? "إلغاء" : "Cancel"}
+                  </button>
+                  <button
+                    onClick={handleSaveItem}
+                    disabled={isSaving || isUploading}
+                    className="px-4 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow transition-all flex items-center gap-1.5 hover:scale-103"
+                  >
+                    {isSaving ? (
+                      <Loader2 size={14} className="animate-spin text-white" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    {isRtl ? "حفظ التغييرات" : "Save Item"}
                   </button>
                 </div>
               </motion.div>

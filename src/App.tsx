@@ -880,7 +880,14 @@ export default function App() {
               {/* [REMOVED StatsCounterBar isights as requested by user] */}
 
               {/* About core values section */}
-              <BriefIntro currentLang={currentLang} gallery={gallery} />
+              <BriefIntro 
+                currentLang={currentLang} 
+                gallery={gallery} 
+                currentUser={currentUser}
+                onSaveGalleryItem={handleSaveGalleryItem}
+                onDeleteGalleryItem={handleDeleteGalleryItem}
+                onUploadMedia={handleUploadMedia}
+              />
 
               {/* Pathways / learning streams detail section */}
               <TracksSection currentLang={currentLang} />
