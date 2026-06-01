@@ -61,23 +61,47 @@ async function fetchSettings(): Promise<any> {
   return null;
 }
 
+// Helper function to sanitize objects for Firestore (removes undefined fields)
+function sanitizeForFirestore(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeForFirestore(item));
+  }
+  if (typeof obj === "object") {
+    const clean: any = {};
+    for (const key of Object.keys(obj)) {
+      if (obj[key] !== undefined) {
+        clean[key] = sanitizeForFirestore(obj[key]);
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
+
 // Helper to save settings to Firestore
 async function writeSettings(data: any): Promise<void> {
   try {
+    const sanitized = sanitizeForFirestore(data);
     const docRef = doc(firestoreDb, "settings", "main");
-    await setDoc(docRef, data);
+    await setDoc(docRef, sanitized);
   } catch (err) {
     console.error("[Firestore] Error writing settings:", err);
+    throw err;
   }
 }
 
 // Helper to save document inside collection
 async function saveDocToFirestore(collectionName: string, docId: string, data: any): Promise<void> {
   try {
+    const sanitized = sanitizeForFirestore(data);
     const docRef = doc(firestoreDb, collectionName, docId);
-    await setDoc(docRef, data);
+    await setDoc(docRef, sanitized);
   } catch (err) {
     console.error(`[Firestore] Error saving document ${docId} to collection ${collectionName}:`, err);
+    throw err;
   }
 }
 

@@ -335,7 +335,7 @@ export default function App() {
     if (isLoggedIn && isAdminMode) {
       fetchAdminStats();
     }
-  }, [isLoggedIn, isAdminMode, posts, slides, messages, media]);
+  }, [isLoggedIn, isAdminMode]);
 
   const fetchPublicData = async () => {
     try {
