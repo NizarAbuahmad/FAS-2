@@ -407,49 +407,73 @@ const DEFAULT_PASSWORDS: Record<string, string> = {
 
 // Ensure db file exists and is validated with strict cryptographic hashing schemas
 async function loadDB() {
-  try {
-    console.log("[Firestore-Sync] Syncing load database from persistent Cloud Firestore...");
-    let dbStore: any = {
-      posts: [],
-      slides: [],
-      settings: {},
-      messages: [],
-      media: [],
-      users: [],
-      gallery: [],
-      pages: [],
-      siteTexts: []
-    };
+  // 1. Establish the local baseline first
+  let dbStore: any = {
+    posts: [],
+    slides: [],
+    settings: {},
+    messages: [],
+    media: [],
+    users: [],
+    gallery: [],
+    pages: [],
+    siteTexts: []
+  };
 
-    // Connect and retrieve existing CMS administrator users configuration
+  let loadedLocal = false;
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const fileData = fs.readFileSync(DB_FILE, "utf-8");
+      const parsed = JSON.parse(fileData);
+      if (parsed && typeof parsed === "object") {
+        if (Array.isArray(parsed.posts)) dbStore.posts = parsed.posts;
+        if (Array.isArray(parsed.slides)) dbStore.slides = parsed.slides;
+        if (parsed.settings) dbStore.settings = parsed.settings;
+        if (Array.isArray(parsed.messages)) dbStore.messages = parsed.messages;
+        if (Array.isArray(parsed.media)) dbStore.media = parsed.media;
+        if (Array.isArray(parsed.users)) dbStore.users = parsed.users;
+        if (Array.isArray(parsed.gallery)) dbStore.gallery = parsed.gallery;
+        if (Array.isArray(parsed.pages)) dbStore.pages = parsed.pages;
+        if (Array.isArray(parsed.siteTexts)) dbStore.siteTexts = parsed.siteTexts;
+        loadedLocal = true;
+      }
+    }
+  } catch (fErr) {
+    console.warn("[Firestore-Sync] Failed to read local db.json baseline:", fErr);
+  }
+
+  if (!loadedLocal) {
+    dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
+  }
+
+  // 2. Attempt to sync with Firestore
+  try {
+    console.log("[Firestore-Sync] Connecting to persistent Cloud Firestore using config database ID...");
     const firestoreUsers = await fetchCollection("users");
 
-    if (firestoreUsers.length === 0) {
-      console.log("[Firestore-Sync] Firebase store is fresh/empty. Initiating initial db backup seed bootstrap...");
-      dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
+    if (firestoreUsers && firestoreUsers.length > 0) {
+      console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
+      const cloudPosts = await fetchCollection("posts");
+      const cloudSlides = await fetchCollection("slides");
+      const cloudSettings = await fetchSettings();
+      const cloudMessages = await fetchCollection("messages");
+      const cloudMedia = await fetchCollection("media");
+      const cloudGallery = await fetchCollection("gallery");
+      const cloudPages = await fetchCollection("pages");
+      const cloudSiteTexts = await fetchCollection("siteTexts");
 
-      // Attempt loading from local seed file backup in memory
-      if (fs.existsSync(DB_FILE)) {
-        try {
-          const fileData = fs.readFileSync(DB_FILE, "utf-8");
-          const parsed = JSON.parse(fileData);
-          if (parsed && typeof parsed === "object") {
-            if (Array.isArray(parsed.posts)) dbStore.posts = parsed.posts;
-            if (Array.isArray(parsed.slides)) dbStore.slides = parsed.slides;
-            if (parsed.settings) dbStore.settings = parsed.settings;
-            if (Array.isArray(parsed.messages)) dbStore.messages = parsed.messages;
-            if (Array.isArray(parsed.media)) dbStore.media = parsed.media;
-            if (Array.isArray(parsed.users)) dbStore.users = parsed.users;
-            if (Array.isArray(parsed.gallery)) dbStore.gallery = parsed.gallery;
-            if (Array.isArray(parsed.pages)) dbStore.pages = parsed.pages;
-            if (Array.isArray(parsed.siteTexts)) dbStore.siteTexts = parsed.siteTexts;
-          }
-        } catch (fErr) {
-          console.warn("[Firestore-Sync] Loading local db.json file failed during boostrap:", fErr);
-        }
-      }
-
-      // Bulk save elements to cloud collections
+      // Merge Cloud contents if retrieved successfully and NOT empty
+      dbStore.users = firestoreUsers;
+      if (cloudPosts && cloudPosts.length > 0) dbStore.posts = cloudPosts;
+      if (cloudSlides && cloudSlides.length > 0) dbStore.slides = cloudSlides;
+      if (cloudSettings) dbStore.settings = cloudSettings;
+      if (cloudMessages && cloudMessages.length > 0) dbStore.messages = cloudMessages;
+      if (cloudMedia && cloudMedia.length > 0) dbStore.media = cloudMedia;
+      if (cloudGallery && cloudGallery.length > 0) dbStore.gallery = cloudGallery;
+      if (cloudPages && cloudPages.length > 0) dbStore.pages = cloudPages;
+      if (cloudSiteTexts && cloudSiteTexts.length > 0) dbStore.siteTexts = cloudSiteTexts;
+    } else {
+      console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
       const seedPromises: Promise<any>[] = [];
       for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
       for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
@@ -463,21 +487,14 @@ async function loadDB() {
 
       await Promise.all(seedPromises);
       console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
-    } else {
-      // Load current Cloud contents
-      dbStore.posts = await fetchCollection("posts");
-      dbStore.slides = await fetchCollection("slides");
-      dbStore.settings = (await fetchSettings()) || { ...DEFAULT_DB.settings };
-      dbStore.messages = await fetchCollection("messages");
-      dbStore.media = await fetchCollection("media");
-      dbStore.gallery = await fetchCollection("gallery");
-      dbStore.pages = await fetchCollection("pages");
-      dbStore.siteTexts = await fetchCollection("siteTexts");
-      dbStore.users = firestoreUsers;
     }
+  } catch (err) {
+    console.warn("[Firestore-Sync] Warning: Connection to Firestore not fully active or restricted. Operating in local DB mode.", err);
+  }
 
-    // Auto-migrate user logins for secure password verification
-    let modified = false;
+  // 3. Post-load processing (password self-healing / auto-migrate updates)
+  let modified = false;
+  if (dbStore.users && dbStore.users.length > 0) {
     dbStore.users.forEach((u: any) => {
       const defaultPassword = DEFAULT_PASSWORDS[u.username];
       if (defaultPassword) {
@@ -497,20 +514,17 @@ async function loadDB() {
         modified = true;
       }
     });
-
-    if (modified) {
-      try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
-      } catch (fErr) {
-        // Ignore
-      }
-    }
-
-    return dbStore;
-  } catch (err) {
-    console.error("Error loading db file, falling back to default db state:", err);
-    return JSON.parse(JSON.stringify(DEFAULT_DB));
   }
+
+  if (modified) {
+    try {
+      fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+    } catch (fErr) {
+      // Ignore
+    }
+  }
+
+  return dbStore;
 }
 
 // Relational role-based server-sanctioned route guards using stateful cryptographically authed tokens

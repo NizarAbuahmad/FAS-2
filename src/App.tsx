@@ -1382,6 +1382,27 @@ export default function App() {
                     ? "تأسست روضة ومدارس الأكاديمية الأولى لتدريس البرنامجين الوطني والدولي وبناء جيل واعٍ متسلح بالمعرفة والفضيلة." 
                     : "Established premium learning tracks matching modern, core regional and international testing guidelines."}
                 </p>
+                {/* Social Media Links under the brand statement */}
+                <div className="flex items-center gap-3 pt-2" dir="ltr">
+                  <a 
+                    href={settings.socialFacebook} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#1877F2]/20 hover:border-[#1877F2] transition-all" 
+                    title="Facebook"
+                  >
+                    <Facebook size={16} />
+                  </a>
+                  <a 
+                    href={settings.socialInstagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#E1306C]/20 hover:border-[#E1306C] transition-all" 
+                    title="Instagram"
+                  >
+                    <Instagram size={16} />
+                  </a>
+                </div>
               </div>
 
               {/* Links Col 2 */}
