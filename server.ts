@@ -407,7 +407,6 @@ const DEFAULT_PASSWORDS: Record<string, string> = {
 
 // Ensure db file exists and is validated with strict cryptographic hashing schemas
 async function loadDB() {
-  // 1. Establish the local baseline first
   let dbStore: any = {
     posts: [],
     slides: [],
@@ -446,13 +445,15 @@ async function loadDB() {
     dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
   }
 
-  // 2. Attempt to sync with Firestore
+  // Attempt to sync with Firestore
   try {
-    console.log("[Firestore-Sync] Connecting to persistent Cloud Firestore using config database ID...");
+    console.log("[Firestore-Sync] Connecting to Cloud Firestore...");
     const firestoreUsers = await fetchCollection("users");
 
     if (firestoreUsers && firestoreUsers.length > 0) {
+      // ✅ Firestore has data — always trust Firestore over local file
       console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
+      
       const cloudPosts = await fetchCollection("posts");
       const cloudSlides = await fetchCollection("slides");
       const cloudSettings = await fetchSettings();
@@ -462,7 +463,6 @@ async function loadDB() {
       const cloudPages = await fetchCollection("pages");
       const cloudSiteTexts = await fetchCollection("siteTexts");
 
-      // Merge Cloud contents if retrieved successfully and NOT empty
       dbStore.users = firestoreUsers;
       if (cloudPosts && cloudPosts.length > 0) dbStore.posts = cloudPosts;
       if (cloudSlides && cloudSlides.length > 0) dbStore.slides = cloudSlides;
@@ -472,33 +472,59 @@ async function loadDB() {
       if (cloudGallery && cloudGallery.length > 0) dbStore.gallery = cloudGallery;
       if (cloudPages && cloudPages.length > 0) dbStore.pages = cloudPages;
       if (cloudSiteTexts && cloudSiteTexts.length > 0) dbStore.siteTexts = cloudSiteTexts;
-    } else {
-      console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
-      const seedPromises: Promise<any>[] = [];
-      for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
-      for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
-      seedPromises.push(writeSettings(dbStore.settings));
-      for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
-      for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
-      for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
-      for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
-      for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
-      for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
 
-      await Promise.all(seedPromises);
-      console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
+    } else {
+      // ⚠️ Firestore returned no users — this means it's a brand new empty database
+      // ONLY seed on first-ever deploy, never overwrite existing CMS data
+      console.log("[Firestore-Sync] Firestore appears empty. Checking if safe to seed...");
+      
+      const cloudPosts = await fetchCollection("posts");
+      
+      if (!cloudPosts || cloudPosts.length === 0) {
+        // Truly empty — safe to seed initial data
+        console.log("[Firestore-Sync] Confirmed empty Firestore. Seeding initial data...");
+        const seedPromises: Promise<any>[] = [];
+        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+        seedPromises.push(writeSettings(dbStore.settings));
+        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+        await Promise.all(seedPromises);
+        console.log("[Firestore-Sync] Initial seed completed.");
+      } else {
+        // Posts exist but users collection is empty — do NOT overwrite anything
+        console.log("[Firestore-Sync] Posts found in Firestore. Skipping seed to protect existing CMS data.");
+        dbStore.posts = cloudPosts;
+        const cloudSlides = await fetchCollection("slides");
+        const cloudSettings = await fetchSettings();
+        const cloudMessages = await fetchCollection("messages");
+        const cloudMedia = await fetchCollection("media");
+        const cloudGallery = await fetchCollection("gallery");
+        const cloudPages = await fetchCollection("pages");
+        const cloudSiteTexts = await fetchCollection("siteTexts");
+        if (cloudSlides && cloudSlides.length > 0) dbStore.slides = cloudSlides;
+        if (cloudSettings) dbStore.settings = cloudSettings;
+        if (cloudMessages && cloudMessages.length > 0) dbStore.messages = cloudMessages;
+        if (cloudMedia && cloudMedia.length > 0) dbStore.media = cloudMedia;
+        if (cloudGallery && cloudGallery.length > 0) dbStore.gallery = cloudGallery;
+        if (cloudPages && cloudPages.length > 0) dbStore.pages = cloudPages;
+        if (cloudSiteTexts && cloudSiteTexts.length > 0) dbStore.siteTexts = cloudSiteTexts;
+      }
     }
   } catch (err) {
-    console.warn("[Firestore-Sync] Warning: Connection to Firestore not fully active or restricted. Operating in local DB mode.", err);
+    console.warn("[Firestore-Sync] Warning: Firestore connection issue. Operating in local DB mode.", err);
   }
 
-  // 3. Post-load processing (password self-healing / auto-migrate updates)
+  // Post-load password self-healing
   let modified = false;
   if (dbStore.users && dbStore.users.length > 0) {
     dbStore.users.forEach((u: any) => {
       const defaultPassword = DEFAULT_PASSWORDS[u.username];
       if (defaultPassword) {
-        // Self-healing reset: confirm the hash is generated using this default password
         const computedHash = crypto.createHmac("sha256", u.salt || "default-salt").update(defaultPassword).digest("hex");
         if (!u.salt || u.passwordHash !== computedHash) {
           u.salt = crypto.randomBytes(16).toString("hex");
@@ -510,7 +536,7 @@ async function loadDB() {
         const passwordToHash = u.password || `${u.username}123`;
         u.salt = crypto.randomBytes(16).toString("hex");
         u.passwordHash = crypto.createHmac("sha256", u.salt).update(passwordToHash).digest("hex");
-        u.password = ""; // Eliminate plain-text password leak
+        u.password = "";
         modified = true;
       }
     });
@@ -526,18 +552,6 @@ async function loadDB() {
 
   return dbStore;
 }
-
-// Relational role-based server-sanctioned route guards using stateful cryptographically authed tokens
-function authenticateToken(allowedRoles?: string[]) {
-  return (req: any, res: any, next: any) => {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Access Denied. Cryptographic authorization token missing or unprovided." });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
       if (err) {
         return res.status(403).json({ error: "Access Forbidden. Invalid, expired, or tampered credentials authorization token." });
       }
