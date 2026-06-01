@@ -337,50 +337,50 @@ export default function App() {
     }
   }, [isLoggedIn, isAdminMode]);
 
-  const fetchPublicData = async () => {
-    try {
-      const res = await fetch("/api/public-data");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.posts) {
-          setPosts(data.posts);
-          saveStateLocally("fas_posts", data.posts);
-        }
-        if (data.slides) {
-          setSlides(data.slides);
-          saveStateLocally("fas_slides", data.slides);
-        }
-        if (data.settings) {
-          setSettings(data.settings);
-          saveStateLocally("fas_settings", data.settings);
-        }
-        if (data.media) {
-          setMedia(data.media);
-          saveStateLocally("fas_media", data.media);
-        }
-        if (data.users) {
-          setUsers(data.users);
-          saveStateLocally("fas_users", data.users);
-        }
-        if (data.pages) {
-          setPages(data.pages);
-          saveStateLocally("fas_pages", data.pages);
-        }
-        if (data.gallery) {
-          setGallery(data.gallery);
-          saveStateLocally("fas_gallery", data.gallery);
-        }
-        if (data.siteTexts) {
-          setSiteTexts(data.siteTexts);
-          saveStateLocally("fas_site_texts", data.siteTexts);
-          applyTranslationOverrides(data.siteTexts);
-          setTranslateRevision(prev => prev + 1);
-        }
-      }
-    } catch (err) {
-      console.warn("Public API connection lost. Activating offline fallback core paths.");
+const fetchPublicData = async () => {
+  try {
+    const { initializeApp, getApps } = await import("firebase/app");
+    const { getFirestore, collection, getDocs, doc, getDoc } = await import("firebase/firestore");
+
+    const firebaseConfig = await fetch("/firebase-applet-config.json").then(r => r.json());
+    
+    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+    const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+    const fetchCol = async (name: string) => {
+      const snap = await getDocs(collection(db, name));
+      return snap.docs.map(d => d.data());
+    };
+
+    const settingsSnap = await getDoc(doc(db, "settings", "main"));
+    const cloudSettings = settingsSnap.exists() ? settingsSnap.data() : null;
+
+    const [cloudPosts, cloudSlides, cloudMedia, cloudGallery, cloudPages, cloudSiteTexts] = await Promise.all([
+      fetchCol("posts"),
+      fetchCol("slides"),
+      fetchCol("media"),
+      fetchCol("gallery"),
+      fetchCol("pages"),
+      fetchCol("siteTexts")
+    ]);
+
+    if (cloudPosts.length > 0) { setPosts(cloudPosts as Post[]); saveStateLocally("fas_posts", cloudPosts); }
+    if (cloudSlides.length > 0) { setSlides(cloudSlides as CarouselSlide[]); saveStateLocally("fas_slides", cloudSlides); }
+    if (cloudSettings) { setSettings(cloudSettings as ContactDetails); saveStateLocally("fas_settings", cloudSettings); }
+    if (cloudMedia.length > 0) { setMedia(cloudMedia as MediaAsset[]); saveStateLocally("fas_media", cloudMedia); }
+    if (cloudGallery.length > 0) { setGallery(cloudGallery as GalleryItem[]); saveStateLocally("fas_gallery", cloudGallery); }
+    if (cloudPages.length > 0) { setPages(cloudPages as CustomPage[]); saveStateLocally("fas_pages", cloudPages); }
+    if (cloudSiteTexts.length > 0) {
+      setSiteTexts(cloudSiteTexts as SiteText[]);
+      saveStateLocally("fas_site_texts", cloudSiteTexts);
+      applyTranslationOverrides(cloudSiteTexts as SiteText[]);
+      setTranslateRevision(prev => prev + 1);
     }
-  };
+
+  } catch (err) {
+    console.warn("Firebase direct read failed. Using cached data.", err);
+  }
+};
 
   const fetchAdminStats = async () => {
     try {
