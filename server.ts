@@ -552,20 +552,7 @@ async function loadDB() {
 
   return dbStore;
 }
-      if (err) {
-        return res.status(403).json({ error: "Access Forbidden. Invalid, expired, or tampered credentials authorization token." });
-      }
-
-      req.user = decoded;
-
-      if (allowedRoles && allowedRoles.length > 0) {
-        if (!allowedRoles.includes(decoded.role)) {
-          return res.status(403).json({ error: `Access Forbidden. Insufficient clearances. Requires: [${allowedRoles.join(", ")}]` });
-        }
-      }
-
-      next();
-  }
+  
 async function saveDB(data: any) {
   try {
     // Save to local file backup
