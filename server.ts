@@ -565,10 +565,7 @@ async function loadDB() {
       }
 
       next();
-    });
   };
-}
-
 async function saveDB(data: any) {
   try {
     // Save to local file backup
