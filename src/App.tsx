@@ -250,43 +250,15 @@ export default function App() {
   };
 
   // DB States syncing with Server
-  const [posts, setPosts] = useState<Post[]>(() => {
-    const local = localStorage.getItem("fas_posts");
-    return local ? JSON.parse(local) : OFFLINE_FALLBACK.posts;
-  });
-  const [slides, setSlides] = useState<CarouselSlide[]>(() => {
-    const local = localStorage.getItem("fas_slides");
-    return local ? JSON.parse(local) : OFFLINE_FALLBACK.slides;
-  });
-  const [settings, setSettings] = useState<ContactDetails>(() => {
-    const local = localStorage.getItem("fas_settings");
-    return local ? JSON.parse(local) : OFFLINE_FALLBACK.settings;
-  });
-  const [messages, setMessages] = useState<ContactMessage[]>(() => {
-    const local = localStorage.getItem("fas_messages");
-    return local ? JSON.parse(local) : [];
-  });
-  const [media, setMedia] = useState<MediaAsset[]>(() => {
-    const local = localStorage.getItem("fas_media");
-    return local ? JSON.parse(local) : [];
-  });
-  const [users, setUsers] = useState<AdminUser[]>(() => {
-    const local = localStorage.getItem("fas_users");
-    return local ? JSON.parse(local) : OFFLINE_FALLBACK.users;
-  });
-  const [stats, setStats] = useState<AnalyticsSummary | null>(null);
-  const [pages, setPages] = useState<CustomPage[]>(() => {
-    const local = localStorage.getItem("fas_pages");
-    return local ? JSON.parse(local) : [];
-  });
-  const [siteTexts, setSiteTexts] = useState<SiteText[]>(() => {
-    const local = localStorage.getItem("fas_site_texts");
-    return local ? JSON.parse(local) : [];
-  });
-  const [gallery, setGallery] = useState<GalleryItem[]>(() => {
-    const local = localStorage.getItem("fas_gallery");
-    return local ? JSON.parse(local) : OFFLINE_FALLBACK.gallery;
-  });
+  const [posts, setPosts] = useState<Post[]>(OFFLINE_FALLBACK.posts);
+const [slides, setSlides] = useState<CarouselSlide[]>(OFFLINE_FALLBACK.slides);
+const [settings, setSettings] = useState<ContactDetails>(OFFLINE_FALLBACK.settings);
+const [messages, setMessages] = useState<ContactMessage[]>([]);
+const [media, setMedia] = useState<MediaAsset[]>([]);
+const [stats, setStats] = useState<AnalyticsSummary | null>(null);
+const [pages, setPages] = useState<CustomPage[]>([]);
+const [siteTexts, setSiteTexts] = useState<SiteText[]>([]);
+const [gallery, setGallery] = useState<GalleryItem[]>(OFFLINE_FALLBACK.gallery);
   const [activePageSlug, setActivePageSlug ] = useState<string>("");
   const [translateRevision, setTranslateRevision] = useState<number>(0);
 
