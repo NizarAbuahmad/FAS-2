@@ -448,18 +448,10 @@ const fetchPublicData = async () => {
     saveStateLocally("fas_posts", updatedPosts, true);
 
     try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-        body: JSON.stringify(postToSave)
-      });
-      if (res.ok) {
-        fetchAdminStats();
-        fetchPublicData();
-        return true;
-      }
+      await fsSaveDoc("posts", postToSave.id, postToSave);
+      await fetchPublicData();
     } catch (err) {
-      console.warn("Offline fallback saved post successfully inside browser cache.");
+      console.error("Failed to save post:", err);
     }
     return true;
   };
@@ -471,17 +463,10 @@ const fetchPublicData = async () => {
     saveStateLocally("fas_posts", updatedPosts, true);
 
     try {
-      const res = await fetch(`/api/posts/${id}`, {
-        method: "DELETE",
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        fetchAdminStats();
-        fetchPublicData();
-        return true;
-      }
+      await fsDeleteDoc("posts", id);
+      await fetchPublicData();
     } catch (err) {
-      console.warn("Offline delete post executed successfully inside browser cache.");
+      console.error("Failed to delete post:", err);
     }
     return true;
   };
