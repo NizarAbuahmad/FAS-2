@@ -255,6 +255,7 @@ const [slides, setSlides] = useState<CarouselSlide[]>(OFFLINE_FALLBACK.slides);
 const [settings, setSettings] = useState<ContactDetails>(OFFLINE_FALLBACK.settings);
 const [messages, setMessages] = useState<ContactMessage[]>([]);
 const [media, setMedia] = useState<MediaAsset[]>([]);
+const [users, setUsers] = useState<AdminUser[]>(OFFLINE_FALLBACK.users);
 const [stats, setStats] = useState<AnalyticsSummary | null>(null);
 const [pages, setPages] = useState<CustomPage[]>([]);
 const [siteTexts, setSiteTexts] = useState<SiteText[]>([]);
