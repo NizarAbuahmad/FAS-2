@@ -32,7 +32,7 @@ const firebaseApp = initializeApp(firebaseConfig);
 const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
 // Helper to fetch collection items in Firestore
-async function fetchCollection(collectionName: string): Promise<any[]> {
+async function fetchCollection(collectionName: string): Promise<any[] | null> {
   try {
     const colRef = collection(firestoreDb, collectionName);
     const snap = await getDocs(colRef);
@@ -43,7 +43,7 @@ async function fetchCollection(collectionName: string): Promise<any[]> {
     return results;
   } catch (err) {
     console.error(`[Firestore] Error fetching collection ${collectionName}:`, err);
-    return [];
+    return null;
   }
 }
 
@@ -407,6 +407,7 @@ const DEFAULT_PASSWORDS: Record<string, string> = {
 
 // Ensure db file exists and is validated with strict cryptographic hashing schemas
 async function loadDB() {
+  // 1. Establish the local baseline first
   let dbStore: any = {
     posts: [],
     slides: [],
@@ -445,15 +446,13 @@ async function loadDB() {
     dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
   }
 
-  // Attempt to sync with Firestore
+  // 2. Attempt to sync with Firestore
   try {
-    console.log("[Firestore-Sync] Connecting to Cloud Firestore...");
+    console.log("[Firestore-Sync] Connecting to persistent Cloud Firestore using config database ID...");
     const firestoreUsers = await fetchCollection("users");
 
-    if (firestoreUsers && firestoreUsers.length > 0) {
-      // ✅ Firestore has data — always trust Firestore over local file
+    if (firestoreUsers !== null && firestoreUsers.length > 0) {
       console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
-      
       const cloudPosts = await fetchCollection("posts");
       const cloudSlides = await fetchCollection("slides");
       const cloudSettings = await fetchSettings();
@@ -463,68 +462,43 @@ async function loadDB() {
       const cloudPages = await fetchCollection("pages");
       const cloudSiteTexts = await fetchCollection("siteTexts");
 
+      // Merge Cloud contents if retrieved successfully and NOT null
       dbStore.users = firestoreUsers;
-      if (cloudPosts && cloudPosts.length > 0) dbStore.posts = cloudPosts;
-      if (cloudSlides && cloudSlides.length > 0) dbStore.slides = cloudSlides;
-      if (cloudSettings) dbStore.settings = cloudSettings;
-      if (cloudMessages && cloudMessages.length > 0) dbStore.messages = cloudMessages;
-      if (cloudMedia && cloudMedia.length > 0) dbStore.media = cloudMedia;
-      if (cloudGallery && cloudGallery.length > 0) dbStore.gallery = cloudGallery;
-      if (cloudPages && cloudPages.length > 0) dbStore.pages = cloudPages;
-      if (cloudSiteTexts && cloudSiteTexts.length > 0) dbStore.siteTexts = cloudSiteTexts;
-
+      if (cloudPosts !== null) dbStore.posts = cloudPosts;
+      if (cloudSlides !== null) dbStore.slides = cloudSlides;
+      if (cloudSettings !== null) dbStore.settings = cloudSettings;
+      if (cloudMessages !== null) dbStore.messages = cloudMessages;
+      if (cloudMedia !== null) dbStore.media = cloudMedia;
+      if (cloudGallery !== null) dbStore.gallery = cloudGallery;
+      if (cloudPages !== null) dbStore.pages = cloudPages;
+      if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
     } else {
-      // ⚠️ Firestore returned no users — this means it's a brand new empty database
-      // ONLY seed on first-ever deploy, never overwrite existing CMS data
-      console.log("[Firestore-Sync] Firestore appears empty. Checking if safe to seed...");
-      
-      const cloudPosts = await fetchCollection("posts");
-      
-      if (!cloudPosts || cloudPosts.length === 0) {
-        // Truly empty — safe to seed initial data
-        console.log("[Firestore-Sync] Confirmed empty Firestore. Seeding initial data...");
-        const seedPromises: Promise<any>[] = [];
-        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
-        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
-        seedPromises.push(writeSettings(dbStore.settings));
-        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
-        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
-        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
-        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
-        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
-        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
-        await Promise.all(seedPromises);
-        console.log("[Firestore-Sync] Initial seed completed.");
-      } else {
-        // Posts exist but users collection is empty — do NOT overwrite anything
-        console.log("[Firestore-Sync] Posts found in Firestore. Skipping seed to protect existing CMS data.");
-        dbStore.posts = cloudPosts;
-        const cloudSlides = await fetchCollection("slides");
-        const cloudSettings = await fetchSettings();
-        const cloudMessages = await fetchCollection("messages");
-        const cloudMedia = await fetchCollection("media");
-        const cloudGallery = await fetchCollection("gallery");
-        const cloudPages = await fetchCollection("pages");
-        const cloudSiteTexts = await fetchCollection("siteTexts");
-        if (cloudSlides && cloudSlides.length > 0) dbStore.slides = cloudSlides;
-        if (cloudSettings) dbStore.settings = cloudSettings;
-        if (cloudMessages && cloudMessages.length > 0) dbStore.messages = cloudMessages;
-        if (cloudMedia && cloudMedia.length > 0) dbStore.media = cloudMedia;
-        if (cloudGallery && cloudGallery.length > 0) dbStore.gallery = cloudGallery;
-        if (cloudPages && cloudPages.length > 0) dbStore.pages = cloudPages;
-        if (cloudSiteTexts && cloudSiteTexts.length > 0) dbStore.siteTexts = cloudSiteTexts;
-      }
+      console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
+      const seedPromises: Promise<any>[] = [];
+      for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+      for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+      seedPromises.push(writeSettings(dbStore.settings));
+      for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+      for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+      for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+      for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+      for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+      for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+
+      await Promise.all(seedPromises);
+      console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
     }
   } catch (err) {
-    console.warn("[Firestore-Sync] Warning: Firestore connection issue. Operating in local DB mode.", err);
+    console.warn("[Firestore-Sync] Warning: Connection to Firestore not fully active or restricted. Operating in local DB mode.", err);
   }
 
-  // Post-load password self-healing
+  // 3. Post-load processing (password self-healing / auto-migrate updates)
   let modified = false;
   if (dbStore.users && dbStore.users.length > 0) {
     dbStore.users.forEach((u: any) => {
       const defaultPassword = DEFAULT_PASSWORDS[u.username];
       if (defaultPassword) {
+        // Self-healing reset: confirm the hash is generated using this default password
         const computedHash = crypto.createHmac("sha256", u.salt || "default-salt").update(defaultPassword).digest("hex");
         if (!u.salt || u.passwordHash !== computedHash) {
           u.salt = crypto.randomBytes(16).toString("hex");
@@ -536,7 +510,7 @@ async function loadDB() {
         const passwordToHash = u.password || `${u.username}123`;
         u.salt = crypto.randomBytes(16).toString("hex");
         u.passwordHash = crypto.createHmac("sha256", u.salt).update(passwordToHash).digest("hex");
-        u.password = "";
+        u.password = ""; // Eliminate plain-text password leak
         modified = true;
       }
     });
@@ -552,7 +526,35 @@ async function loadDB() {
 
   return dbStore;
 }
-  
+
+// Relational role-based server-sanctioned route guards using stateful cryptographically authed tokens
+function authenticateToken(allowedRoles?: string[]) {
+  return (req: any, res: any, next: any) => {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ error: "Access Denied. Cryptographic authorization token missing or unprovided." });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
+      if (err) {
+        return res.status(403).json({ error: "Access Forbidden. Invalid, expired, or tampered credentials authorization token." });
+      }
+
+      req.user = decoded;
+
+      if (allowedRoles && allowedRoles.length > 0) {
+        if (!allowedRoles.includes(decoded.role)) {
+          return res.status(403).json({ error: `Access Forbidden. Insufficient clearances. Requires: [${allowedRoles.join(", ")}]` });
+        }
+      }
+
+      next();
+    });
+  };
+}
+
 async function saveDB(data: any) {
   try {
     // Save to local file backup
@@ -616,6 +618,21 @@ async function saveDB(data: any) {
 
   } catch (err) {
     console.error("[Firestore-Sync] Error during saveDB sync flow:", err);
+    throw err;
+  }
+}
+
+// Helper to perform safe Express response handler commits and translate firestore sync failure states to JSON errors
+async function trySaveDB(res: any, data: any, successPayload: any) {
+  try {
+    await saveDB(data);
+    res.json(successPayload);
+  } catch (err: any) {
+    console.error("[trySaveDB] Sync database transaction failed:", err);
+    res.status(500).json({ 
+      error: "Failed to persist updates to persistent Cloud Firestore storage database.",
+      details: err.message || String(err)
+    });
   }
 }
 
@@ -941,6 +958,18 @@ async function startServer() {
 
   // Initialize DB on boot
   let dbStore = await loadDB();
+
+  // Middleware to auto-sync latest database state from Firestore before executing any mutation / database state write
+  app.use(async (req, res, next) => {
+    if (["POST", "PUT", "DELETE"].includes(req.method) && req.path.startsWith("/api/")) {
+      try {
+        dbStore = await loadDB();
+      } catch (err) {
+        console.warn("[Database Sync Middleware Warning] Failed to refresh dbStore state on write request intercept.", err);
+      }
+    }
+    next();
+  });
 
   // Log active state
   console.log(`FAS Amman Fullstack CMS database loaded with: ${dbStore.posts.length} posts, ${dbStore.slides.length} slides, ${dbStore.messages.length} inquiries.`);
@@ -1274,8 +1303,7 @@ async function startServer() {
         views: 0
       };
       dbStore.posts.unshift(newPost);
-      await saveDB(dbStore);
-      res.status(201).json(newPost);
+      await trySaveDB(res, dbStore, newPost);
     } else {
       // Update
       const idx = dbStore.posts.findIndex((p: Post) => p.id === postData.id);
@@ -1284,8 +1312,7 @@ async function startServer() {
           ...dbStore.posts[idx],
           ...postData
         };
-        await saveDB(dbStore);
-        res.json(dbStore.posts[idx]);
+        await trySaveDB(res, dbStore, dbStore.posts[idx]);
       } else {
         res.status(404).json({ error: "Post not found" });
       }
@@ -1297,8 +1324,7 @@ async function startServer() {
     const idx = dbStore.posts.findIndex((p: Post) => p.id === req.params.id);
     if (idx !== -1) {
       dbStore.posts[idx].views = (dbStore.posts[idx].views || 0) + 1;
-      await saveDB(dbStore);
-      res.json({ views: dbStore.posts[idx].views });
+      await trySaveDB(res, dbStore, { views: dbStore.posts[idx].views });
     } else {
       res.status(404).json({ error: "Post not found" });
     }
@@ -1309,8 +1335,7 @@ async function startServer() {
     const initialLen = dbStore.posts.length;
     dbStore.posts = dbStore.posts.filter((p: Post) => p.id !== req.params.id);
     if (dbStore.posts.length < initialLen) {
-      await saveDB(dbStore);
-      res.json({ success: true, message: "Post deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Post deleted" });
     } else {
       res.status(404).json({ error: "Post not found" });
     }
@@ -1333,8 +1358,7 @@ async function startServer() {
         order: slideData.order || dbStore.slides.length + 1
       };
       dbStore.slides.push(newSlide);
-      await saveDB(dbStore);
-      res.status(201).json(newSlide);
+      await trySaveDB(res, dbStore, newSlide);
     } else {
       // Update
       const idx = dbStore.slides.findIndex((s: CarouselSlide) => s.id === slideData.id);
@@ -1343,8 +1367,7 @@ async function startServer() {
           ...dbStore.slides[idx],
           ...slideData
         };
-        await saveDB(dbStore);
-        res.json(dbStore.slides[idx]);
+        await trySaveDB(res, dbStore, dbStore.slides[idx]);
       } else {
         res.status(404).json({ error: "Slide not found" });
       }
@@ -1356,8 +1379,7 @@ async function startServer() {
     const initialLen = dbStore.slides.length;
     dbStore.slides = dbStore.slides.filter((s: CarouselSlide) => s.id !== req.params.id);
     if (dbStore.slides.length < initialLen) {
-      await saveDB(dbStore);
-      res.json({ success: true, message: "Slide deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Slide deleted" });
     } else {
       res.status(404).json({ error: "Slide not found" });
     }
@@ -1395,8 +1417,7 @@ async function startServer() {
       dbStore.gallery.push(item);
     }
 
-    await saveDB(dbStore);
-    res.json({ success: true, item });
+    await trySaveDB(res, dbStore, { success: true, item });
   });
 
   // Delete Gallery Item
@@ -1407,8 +1428,7 @@ async function startServer() {
     const initialLen = dbStore.gallery.length;
     dbStore.gallery = dbStore.gallery.filter((g: GalleryItem) => g.id !== req.params.id);
     if (dbStore.gallery.length < initialLen) {
-      await saveDB(dbStore);
-      res.json({ success: true, message: "Gallery item deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Gallery item deleted" });
     } else {
       res.status(404).json({ error: "Gallery item not found" });
     }

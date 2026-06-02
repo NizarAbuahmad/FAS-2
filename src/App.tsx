@@ -250,18 +250,46 @@ export default function App() {
   };
 
   // DB States syncing with Server
-  const [posts, setPosts] = useState<Post[]>(OFFLINE_FALLBACK.posts);
-const [slides, setSlides] = useState<CarouselSlide[]>(OFFLINE_FALLBACK.slides);
-const [settings, setSettings] = useState<ContactDetails>(OFFLINE_FALLBACK.settings);
-const [messages, setMessages] = useState<ContactMessage[]>([]);
-const [media, setMedia] = useState<MediaAsset[]>([]);
-const [users, setUsers] = useState<AdminUser[]>(OFFLINE_FALLBACK.users);
-const [stats, setStats] = useState<AnalyticsSummary | null>(null);
-const [pages, setPages] = useState<CustomPage[]>([]);
-const [siteTexts, setSiteTexts] = useState<SiteText[]>([]);
-const [gallery, setGallery] = useState<GalleryItem[]>(OFFLINE_FALLBACK.gallery);
+  const [posts, setPosts] = useState<Post[]>(() => {
+    const local = localStorage.getItem("fas_posts");
+    return local ? JSON.parse(local) : OFFLINE_FALLBACK.posts;
+  });
+  const [slides, setSlides] = useState<CarouselSlide[]>(() => {
+    const local = localStorage.getItem("fas_slides");
+    return local ? JSON.parse(local) : OFFLINE_FALLBACK.slides;
+  });
+  const [settings, setSettings] = useState<ContactDetails>(() => {
+    const local = localStorage.getItem("fas_settings");
+    return local ? JSON.parse(local) : OFFLINE_FALLBACK.settings;
+  });
+  const [messages, setMessages] = useState<ContactMessage[]>(() => {
+    const local = localStorage.getItem("fas_messages");
+    return local ? JSON.parse(local) : [];
+  });
+  const [media, setMedia] = useState<MediaAsset[]>(() => {
+    const local = localStorage.getItem("fas_media");
+    return local ? JSON.parse(local) : [];
+  });
+  const [users, setUsers] = useState<AdminUser[]>(() => {
+    const local = localStorage.getItem("fas_users");
+    return local ? JSON.parse(local) : OFFLINE_FALLBACK.users;
+  });
+  const [stats, setStats] = useState<AnalyticsSummary | null>(null);
+  const [pages, setPages] = useState<CustomPage[]>(() => {
+    const local = localStorage.getItem("fas_pages");
+    return local ? JSON.parse(local) : [];
+  });
+  const [siteTexts, setSiteTexts] = useState<SiteText[]>(() => {
+    const local = localStorage.getItem("fas_site_texts");
+    return local ? JSON.parse(local) : [];
+  });
+  const [gallery, setGallery] = useState<GalleryItem[]>(() => {
+    const local = localStorage.getItem("fas_gallery");
+    return local ? JSON.parse(local) : OFFLINE_FALLBACK.gallery;
+  });
   const [activePageSlug, setActivePageSlug ] = useState<string>("");
   const [translateRevision, setTranslateRevision] = useState<number>(0);
+  const [cmsError, setCmsError] = useState<string | null>(null);
 
   // CMS active page section Tab
   const [activeTab, setActiveTab ] = useState<"posts" | "carousel" | "media" | "messages" | "settings" | "users" | "pages" | "siteTexts" | "gallery">("posts");
@@ -310,50 +338,50 @@ const [gallery, setGallery] = useState<GalleryItem[]>(OFFLINE_FALLBACK.gallery);
     }
   }, [isLoggedIn, isAdminMode]);
 
-const fetchPublicData = async () => {
-  try {
-    const { initializeApp, getApps } = await import("firebase/app");
-    const { getFirestore, collection, getDocs, doc, getDoc } = await import("firebase/firestore");
-
-    const firebaseConfig = await fetch("/firebase-applet-config.json").then(r => r.json());
-    
-    const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
-    const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-
-    const fetchCol = async (name: string) => {
-      const snap = await getDocs(collection(db, name));
-      return snap.docs.map(d => d.data());
-    };
-
-    const settingsSnap = await getDoc(doc(db, "settings", "main"));
-    const cloudSettings = settingsSnap.exists() ? settingsSnap.data() : null;
-
-    const [cloudPosts, cloudSlides, cloudMedia, cloudGallery, cloudPages, cloudSiteTexts] = await Promise.all([
-      fetchCol("posts"),
-      fetchCol("slides"),
-      fetchCol("media"),
-      fetchCol("gallery"),
-      fetchCol("pages"),
-      fetchCol("siteTexts")
-    ]);
-
-    if (cloudPosts.length > 0) { setPosts(cloudPosts as Post[]); saveStateLocally("fas_posts", cloudPosts); }
-    if (cloudSlides.length > 0) { setSlides(cloudSlides as CarouselSlide[]); saveStateLocally("fas_slides", cloudSlides); }
-    if (cloudSettings) { setSettings(cloudSettings as ContactDetails); saveStateLocally("fas_settings", cloudSettings); }
-    if (cloudMedia.length > 0) { setMedia(cloudMedia as MediaAsset[]); saveStateLocally("fas_media", cloudMedia); }
-    if (cloudGallery.length > 0) { setGallery(cloudGallery as GalleryItem[]); saveStateLocally("fas_gallery", cloudGallery); }
-    if (cloudPages.length > 0) { setPages(cloudPages as CustomPage[]); saveStateLocally("fas_pages", cloudPages); }
-    if (cloudSiteTexts.length > 0) {
-      setSiteTexts(cloudSiteTexts as SiteText[]);
-      saveStateLocally("fas_site_texts", cloudSiteTexts);
-      applyTranslationOverrides(cloudSiteTexts as SiteText[]);
-      setTranslateRevision(prev => prev + 1);
+  const fetchPublicData = async () => {
+    try {
+      const res = await fetch("/api/public-data");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.posts) {
+          setPosts(data.posts);
+          saveStateLocally("fas_posts", data.posts);
+        }
+        if (data.slides) {
+          setSlides(data.slides);
+          saveStateLocally("fas_slides", data.slides);
+        }
+        if (data.settings) {
+          setSettings(data.settings);
+          saveStateLocally("fas_settings", data.settings);
+        }
+        if (data.media) {
+          setMedia(data.media);
+          saveStateLocally("fas_media", data.media);
+        }
+        if (data.users) {
+          setUsers(data.users);
+          saveStateLocally("fas_users", data.users);
+        }
+        if (data.pages) {
+          setPages(data.pages);
+          saveStateLocally("fas_pages", data.pages);
+        }
+        if (data.gallery) {
+          setGallery(data.gallery);
+          saveStateLocally("fas_gallery", data.gallery);
+        }
+        if (data.siteTexts) {
+          setSiteTexts(data.siteTexts);
+          saveStateLocally("fas_site_texts", data.siteTexts);
+          applyTranslationOverrides(data.siteTexts);
+          setTranslateRevision(prev => prev + 1);
+        }
+      }
+    } catch (err) {
+      console.warn("Public API connection lost. Activating offline fallback core paths.");
     }
-
-  } catch (err) {
-    console.warn("Firebase direct read failed. Using cached data.", err);
-  }
-};
+  };
 
   const fetchAdminStats = async () => {
     try {
@@ -421,12 +449,26 @@ const fetchPublicData = async () => {
     saveStateLocally("fas_posts", updatedPosts, true);
 
     try {
-      await fsSaveDoc("posts", postToSave.id, postToSave);
-      await fetchPublicData();
-    } catch (err) {
-      console.error("Failed to save post:", err);
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(postToSave)
+      });
+      if (res.ok) {
+        fetchAdminStats();
+        fetchPublicData();
+        setCmsError(null);
+        return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to sync post with cloud firestore (Status: ${res.status}).`);
+        return false;
+      }
+    } catch (err: any) {
+      console.warn("Offline fallback saved post successfully inside browser cache.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Delete Post
@@ -436,12 +478,25 @@ const fetchPublicData = async () => {
     saveStateLocally("fas_posts", updatedPosts, true);
 
     try {
-      await fsDeleteDoc("posts", id);
-      await fetchPublicData();
-    } catch (err) {
-      console.error("Failed to delete post:", err);
+      const res = await fetch(`/api/posts/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        fetchAdminStats();
+        fetchPublicData();
+        setCmsError(null);
+        return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to delete post from cloud firestore (Status: ${res.status}).`);
+        return false;
+      }
+    } catch (err: any) {
+      console.warn("Offline delete post executed successfully inside browser cache.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Save Carousel Slide
@@ -477,12 +532,18 @@ const fetchPublicData = async () => {
       if (res.ok) {
         fetchAdminStats();
         fetchPublicData();
+        setCmsError(null);
         return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to sync slide with cloud firestore (Status: ${res.status}).`);
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Offline fallback saved carousel slide inside browser cache.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Delete Slide
@@ -499,12 +560,18 @@ const fetchPublicData = async () => {
       if (res.ok) {
         fetchAdminStats();
         fetchPublicData();
+        setCmsError(null);
         return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to delete slide from cloud firestore (Status: ${res.status}).`);
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Offline carousel slide deletion stored inside browser cache.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Save Gallery Item
@@ -545,12 +612,18 @@ const fetchPublicData = async () => {
       if (res.ok) {
         await fetchAdminStats();
         await fetchPublicData();
+        setCmsError(null); // clear existing errors on success
         return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to sync gallery item with cloud firestore (Status: ${res.status}).`);
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Offline fallback saved gallery item in local cache.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Delete Gallery Item
@@ -567,12 +640,18 @@ const fetchPublicData = async () => {
       if (res.ok) {
         await fetchAdminStats();
         await fetchPublicData();
+        setCmsError(null);
         return true;
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setCmsError(errData.error || errData.details || `Failed to delete gallery item from cloud firestore (Status: ${res.status}).`);
+        return false;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Offline deletion of gallery item in local cache Completed.");
+      setCmsError(`Network connection error or server unreachable: ${err.message || String(err)}`);
+      return false;
     }
-    return true;
   };
 
   // Save/Update Custom Page
@@ -1058,6 +1137,25 @@ const fetchPublicData = async () => {
           setActiveTab={setActiveTab}
           onLogout={handleLogout}
         >
+          {cmsError && (
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-800 rounded-lg shadow-sm flex items-start gap-3 justify-between">
+              <div className="flex gap-2">
+                <span className="text-xl font-bold">⚠️</span>
+                <div>
+                  <h4 className="font-semibold text-red-900">Error: Persistent Cloud Db Sync Failed</h4>
+                  <p className="text-sm mt-0.5 leading-relaxed">{cmsError}</p>
+                  <p className="text-xs text-red-600 mt-1 font-mono">This update is recorded in your browser session locally but failed to persist to the Cloud backend database. Ensure your Firebase configuration/database is active.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setCmsError(null)} 
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg hover:scale-105 transition-all p-1"
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
+            </div>
+          )}
           {activeTab === "posts" && (
             <PostManager 
               currentLang={currentLang} 
