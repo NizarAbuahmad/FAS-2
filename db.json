@@ -1,270 +1,282 @@
 {
   "posts": [
     {
-      "id": "post-1",
+      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      "authorEn": "Admissions Office",
+      "categoryAr": "القبول والتسجيل",
       "titleEn": "Admission & Registration Open for Academic Year 2026/2027",
-      "titleAr": "فتح باب القبول والتسجيل للعام الدراسي الجديد 2026/2027",
+      "descriptionAr": "بدء التسجيل من صفوف الروضة والتمهيدي وحتى الصف الثاني عشر (التوجيهي وبرنامج IGCSE).",
+      "published": true,
       "contentEn": "We are thrilled to announcement that admission and registration are now open across all school divisions (KG, National, and International Cambridge IGCSE programs) for the upcoming school session. At First Academy School Amman (FAS), we pride ourselves on nurturing safe environments, strong morals, and balanced learning tracks tailored to spark every learner's maximum capacity. Schedule a private tour or submit an online query now.",
       "contentAr": "يسرنا أن نعلن عن فتح باب القبول والتسجيل بجميع المسارات والصفوف التعليمية (الروضة، البرنامج الوطني، وبرنامج كامبريدج الدولي IGCSE) للعام الدراسي القادم. في روضة ومدارس الأكاديمية الأولى، نفخر بتوفير بيئة تعليمية آمنة ومحفزة تنمي القيم الأخلاقية الراسخة وتدعم نمو أطفالنا في كافة النواحي. احجز جولة خاصة بالحرم المدرسي الآن.",
       "descriptionEn": "Registration is officially open from Kindergarten up to Grade 12. Choose English IGCSE or National Track.",
-      "descriptionAr": "بدء التسجيل من صفوف الروضة والتمهيدي وحتى الصف الثاني عشر (التوجيهي وبرنامج IGCSE).",
-      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
-      "date": "2026-05-20",
-      "categoryEn": "Admissions",
-      "categoryAr": "القبول والتسجيل",
-      "authorEn": "Admissions Office",
       "authorAr": "مكتب القبول",
-      "published": true,
-      "views": 142
+      "views": 142,
+      "date": "2026-05-20",
+      "titleAr": "فتح باب القبول والتسجيل للعام الدراسي الجديد 2026/2027",
+      "id": "post-1",
+      "categoryEn": "Admissions"
     },
     {
-      "id": "post-2",
-      "titleEn": "Annual Spelling Bee Competition Winners Awarded",
-      "titleAr": "تتويج الفائزين بمسابقة التهجئة السنوية Spelling Bee",
+      "authorAr": "قسم اللغة الإنجليزية",
+      "descriptionEn": "Congratulations to our stars across elementary and middle school spelling tiers.",
       "contentEn": "Our elementary and middle-school English outstanding spellers gathered for the final rounds of our English Spelling Bee Championship. Congratulations to our grade 5 & 8 champions who demonstrated beautiful speech, fast vocabulary recall, and high composure on stage. Special thanks to our teachers and parent committees who supported this academic milestone project.",
       "contentAr": "اجتمع طلابنا ومعلمونا لتتويج الفائزين بالنهائيات ببطولة التهجئة السنوية للغة الإنجليزية Spelling Bee للبراعم الطموحة. نهنئ أبطال الصفين الخامس والثامن على آدائهم المتميز وثباتهم الرائع على المسرح. كل الشكر والتقدير لجهود المعلمين الداعمة ولجان أولياء الأمور.",
-      "descriptionEn": "Congratulations to our stars across elementary and middle school spelling tiers.",
       "descriptionAr": "نهنئ نجومنا الفائزين في مسابقة التهجئة للغة الإنجليزية السنوية.",
-      "image": "/slide4.jpg",
-      "date": "2026-05-18",
-      "categoryEn": "Academics",
-      "categoryAr": "الأنشطة الأكاديمية",
-      "authorEn": "English Department",
-      "authorAr": "قسم اللغة الإنجليزية",
       "published": true,
+      "categoryAr": "الأنشطة الأكاديمية",
+      "titleEn": "Annual Spelling Bee Competition Winners Awarded",
+      "authorEn": "English Department",
+      "image": "/slide4.jpg",
+      "categoryEn": "Academics",
+      "id": "post-2",
+      "titleAr": "تتويج الفائزين بمسابقة التهجئة السنوية Spelling Bee",
+      "date": "2026-05-18",
       "views": 95
     },
     {
-      "id": "post-3",
-      "titleEn": "Highlights of our Mother's Day Assembly",
-      "titleAr": "مقتطفات من حفل تكريم الأمهات السنوي بالأكاديمية",
+      "authorEn": "KG Administration",
+      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
+      "authorAr": "إدارة الروضة",
+      "descriptionEn": "A joyful morning of music and drama honoring mothers of First Academy School.",
       "contentEn": "Our primary and KG levels presented a heartwarming assembly filled with Arabic & English songs, custom canvas painting galleries, and interactive skits dedicated to the lovely mothers of First Academy School. The morning was wrapped in broad smiles and joyful laughter. We salute all parents for being the foundation of our vibrant educational community.",
       "contentAr": "قدم أطفال قسم الروضة والمرحلة الأساسية حفلاً مبهجاً مفعماً بالابتسامات والأناشيد الجميلة وصناعة لوحات الهدايا اليدوية احتفالاً وتكريماً للأمهات العزيزات في روضة ومدارس الأكاديمية الأولى. كانت احتفالية مميزة ودافئة.",
-      "descriptionEn": "A joyful morning of music and drama honoring mothers of First Academy School.",
       "descriptionAr": "أطفال الروضة يشاركون في تزيين اللوحات والأناشيد تكريماً لأمهاتنا العزيزات.",
-      "image": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
-      "date": "2026-03-21",
-      "categoryEn": "Events",
-      "categoryAr": "الفعاليات المدرسية",
-      "authorEn": "KG Administration",
-      "authorAr": "إدارة الروضة",
       "published": true,
-      "views": 210
+      "categoryAr": "الفعاليات المدرسية",
+      "titleEn": "Highlights of our Mother's Day Assembly",
+      "titleAr": "مقتطفات من حفل تكريم الأمهات السنوي بالأكاديمية",
+      "date": "2026-03-21",
+      "views": 210,
+      "categoryEn": "Events",
+      "id": "post-3"
     }
   ],
   "slides": [
     {
-      "id": "slide-1",
       "titleEn": "First Academy School Campus",
-      "titleAr": "حرم الأكاديمية الأولى والملاعب الخضراء",
       "subtitleEn": "Extensive grass turf football field and safe modern campus buildings.",
+      "link": "#about",
       "subtitleAr": "روضة ومدارس الأكاديمية الأولى: ملاعب عشبية خضراء خارجية متكاملة وبيئة تعليمية تربوية آمنة.",
       "image": "/slide1.jpg",
-      "link": "#about",
-      "order": 1
+      "order": 1,
+      "id": "slide-1",
+      "titleAr": "حرم الأكاديمية الأولى والملاعب الخضراء"
     },
     {
       "id": "slide-2",
-      "titleEn": "Welcome Back to School Greetings",
       "titleAr": "مرحباً بأبطالنا وبراعمنا في العام الجديد",
       "subtitleEn": "Smiles, custom booklets, stories, back-to-school banners, and high academic excitement.",
+      "link": "#news",
+      "titleEn": "Welcome Back to School Greetings",
       "subtitleAr": "نستقبل العام الدراسي بكل همة ونشاط مع توزيع القصص والكتب والأنشطة الترحيبية المبهجة.",
       "image": "/slide2.jpg",
-      "link": "#news",
       "order": 2
     },
     {
-      "id": "slide-3",
-      "titleEn": "Sports Academy & Football Team",
       "titleAr": "الأنشطة الرياضية وفريق كرة القدم المتميّز",
-      "subtitleEn": "Nurturing fitness, physical development, teamwork and high athletic sportsmanship.",
-      "subtitleAr": "تدريبات مستمرة لفريق مدارس الأكاديمية الأولى لكرة القدم لبناء اللياقة العالية والمثابرة والتعاون بالملاعب العشبية.",
+      "id": "slide-3",
+      "order": 3,
       "image": "/slide3.jpg",
-      "link": "#contact",
-      "order": 3
+      "subtitleAr": "تدريبات مستمرة لفريق مدارس الأكاديمية الأولى لكرة القدم لبناء اللياقة العالية والمثابرة والتعاون بالملاعب العشبية.",
+      "titleEn": "Sports Academy & Football Team",
+      "subtitleEn": "Nurturing fitness, physical development, teamwork and high athletic sportsmanship.",
+      "link": "#contact"
     },
     {
       "id": "slide-4",
-      "titleEn": "Spelling Bee Champions Awarded",
       "titleAr": "حفل تكريم الفائزين ببطولة التهجئة السنوية",
-      "subtitleEn": "Celebrating academic excellence, strong vocabulary, and outstanding spelling tier skills.",
-      "subtitleAr": "تكريم براعم الأكاديمية الأولى المتفوقين بمسابقة Spelling Bee السنوية لتشجيع التميّز المعرفي المستدام.",
-      "image": "/slide4.jpg",
+      "titleEn": "Spelling Bee Champions Awarded",
       "link": "#news",
-      "order": 4
+      "subtitleEn": "Celebrating academic excellence, strong vocabulary, and outstanding spelling tier skills.",
+      "order": 4,
+      "subtitleAr": "تكريم براعم الأكاديمية الأولى المتفوقين بمسابقة Spelling Bee السنوية لتشجيع التميّز المعرفي المستدام.",
+      "image": "/slide4.jpg"
     }
   ],
   "settings": {
-    "phone": "065510171",
+    "socialX": "https://twitter.com/fas_amman",
     "altPhone": "0796777980",
-    "email": "fas.edu.jo@gmail.com",
-    "notificationEmail": "fas.edu.jo@gmail.com",
-    "addressEn": "Madina Munawwara Street, opposite the Independent Election Commission, Amman, Jordan",
     "addressAr": "عمان، شارع المدينة المنورة - مقابل الهيئة المستقلة للانتخاب",
-    "workingHoursEn": "Sunday - Thursday: 7:30 AM - 3:00 PM",
-    "workingHoursAr": "من الأحد إلى الخميس: 7:30 صباحاً حتى 3:00 مساءً",
+    "phone": "065510171",
     "socialFacebook": "https://facebook.com/firstacademyschool",
+    "notificationEmail": "fas.edu.jo@gmail.com",
     "socialInstagram": "https://instagram.com/firstacademyschool",
-    "socialLinkedin": "https://linkedin.com/company/firstacademyschool",
+    "workingHoursEn": "Sunday - Thursday: 7:30 AM - 3:00 PM",
+    "addressEn": "Madina Munawwara Street, opposite the Independent Election Commission, Amman, Jordan",
+    "workingHoursAr": "من الأحد إلى الخميس: 7:30 صباحاً حتى 3:00 مساءً",
+    "email": "fas.edu.jo@gmail.com",
     "socialYoutube": "https://youtube.com/firstacademyschool",
-    "socialX": "https://twitter.com/fas_amman"
+    "socialLinkedin": "https://linkedin.com/company/firstacademyschool"
   },
   "messages": [
     {
-      "id": "msg-1780237220429",
-      "name": "Nizar Test Admin",
-      "email": "nizar.abuahmad@gmail.com",
-      "phone": "962790615095",
-      "subject": "Class A",
-      "message": "Hello world from production build test runner",
-      "createdAt": "2026-05-31T14:20:20.429Z",
-      "isRead": false
+      "name": "Tareq Al-Saeed",
+      "email": "tareq.saeed@gmail.com",
+      "id": "msg-1",
+      "phone": "+962 7 8100 2030",
+      "createdAt": "2026-05-24T10:30:00Z",
+      "isRead": false,
+      "subject": "Admission Inquiry - Grade 3 National",
+      "message": "Hello admissions, I would like to inquire about the vacant seats for third grade in the national stream, and the annual school fees. Best regards."
     },
     {
+      "isRead": false,
+      "phone": "962790615095",
+      "createdAt": "2026-05-31T14:18:30.524Z",
       "id": "msg-1780237110524",
       "name": "Nizar Abu Ahmad",
       "email": "nizar.abuahmad@gmail.com",
-      "phone": "962790615095",
-      "subject": "Enquiry",
       "message": "Hello world",
-      "createdAt": "2026-05-31T14:18:30.524Z",
-      "isRead": false
+      "subject": "Enquiry"
     },
     {
-      "id": "msg-1",
-      "name": "Tareq Al-Saeed",
-      "email": "tareq.saeed@gmail.com",
-      "phone": "+962 7 8100 2030",
-      "subject": "Admission Inquiry - Grade 3 National",
-      "message": "Hello admissions, I would like to inquire about the vacant seats for third grade in the national stream, and the annual school fees. Best regards.",
-      "createdAt": "2026-05-24T10:30:00Z",
-      "isRead": false
+      "isRead": false,
+      "name": "Nizar Test Admin",
+      "email": "nizar.abuahmad@gmail.com",
+      "id": "msg-1780237220429",
+      "createdAt": "2026-05-31T14:20:20.429Z",
+      "phone": "962790615095",
+      "subject": "Class A",
+      "message": "Hello world from production build test runner"
     },
     {
       "id": "msg-2",
+      "phone": "+962 7 9450 6789",
+      "createdAt": "2026-05-25T08:15:00Z",
       "name": "Lina Kawar",
       "email": "lina.kawar@outlook.com",
-      "phone": "+962 7 9450 6789",
-      "subject": "IGCSE Chemistry Lab Setup",
+      "isRead": true,
       "message": "I am interested in transferring my daughter to the Cambridge IGCSE program in grade 9. I would love to schedule a visit to look at the chemistry and physics labs. Thank you.",
-      "createdAt": "2026-05-25T08:15:00Z",
-      "isRead": true
+      "subject": "IGCSE Chemistry Lab Setup"
     }
   ],
   "media": [
     {
-      "id": "media-1",
-      "name": "campus_facade.jpg",
-      "url": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      "height": 800,
+      "type": "image/jpeg",
       "size": 145000,
-      "type": "image/jpeg",
-      "uploadedAt": "2026-05-10T11:00:00Z",
       "optimized": true,
+      "name": "campus_facade.jpg",
       "width": 1200,
-      "height": 800
+      "id": "media-1",
+      "url": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
+      "uploadedAt": "2026-05-10T11:00:00Z"
     },
     {
-      "id": "media-2",
+      "optimized": true,
       "name": "classroom_lab.jpg",
-      "url": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80&w=800",
-      "size": 98000,
-      "type": "image/jpeg",
-      "uploadedAt": "2026-05-12T14:30:00Z",
-      "optimized": true,
+      "id": "media-2",
       "width": 1200,
-      "height": 800
+      "url": "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?auto=format&fit=crop&q=80&w=800",
+      "uploadedAt": "2026-05-12T14:30:00Z",
+      "height": 800,
+      "type": "image/jpeg",
+      "size": 98000
     },
     {
-      "id": "media-3",
-      "name": "early_learning_grade.jpg",
-      "url": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800",
       "size": 112000,
+      "height": 800,
       "type": "image/jpeg",
       "uploadedAt": "2026-05-14T09:12:00Z",
       "optimized": true,
+      "name": "early_learning_grade.jpg",
+      "id": "media-3",
       "width": 1200,
-      "height": 800
+      "url": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=800"
     }
   ],
   "users": [
     {
-      "id": "u-1",
       "username": "nizar_admin",
-      "email": "nizar.abuahmad@gmail.com",
-      "role": "Admin",
-      "createdAt": "2026-05-01T09:00:00Z",
       "salt": "c86f8e8c2a4da96059234ade23cc63f2",
       "passwordHash": "410107bd14bd13aa2170b54c1ef09516d3bb8008719add09bcdf0c7c966fd5d6",
-      "password": ""
+      "email": "nizar.abuahmad@gmail.com",
+      "id": "u-1",
+      "password": "",
+      "createdAt": "2026-05-01T09:00:00Z",
+      "role": "Admin"
     },
     {
-      "id": "u-2",
+      "passwordHash": "f5d1335a5348c55aea6e011a690049d68e0740a91edd6c958a436bc017efe626",
+      "salt": "edb3727540f1641d046506a0b86d3ca8",
       "username": "samira_editor",
-      "email": "editor@firstacademy.edu.jo",
+      "id": "u-2",
       "role": "Editor",
       "createdAt": "2026-05-15T12:00:00Z",
-      "salt": "edb3727540f1641d046506a0b86d3ca8",
-      "passwordHash": "f5d1335a5348c55aea6e011a690049d68e0740a91edd6c958a436bc017efe626",
-      "password": ""
+      "password": "",
+      "email": "editor@firstacademy.edu.jo"
     },
     {
-      "id": "u-3",
-      "username": "guest_viewer",
       "email": "guest@firstacademy.edu.jo",
-      "role": "Viewer",
+      "id": "u-3",
+      "password": "",
       "createdAt": "2026-05-19T10:45:00Z",
+      "role": "Viewer",
+      "username": "guest_viewer",
       "salt": "268267af4517e02201a12753d17560af",
-      "passwordHash": "4ac7ac6c809b5c65d899dd012eb7249f8f630f06dac590c360088f7040e95687",
-      "password": ""
+      "passwordHash": "4ac7ac6c809b5c65d899dd012eb7249f8f630f06dac590c360088f7040e95687"
     }
   ],
-  "siteTexts": [],
-  "pages": [],
   "gallery": [
     {
-      "id": "gallery-1",
       "titleEn": "Modern Interactive Computing Lab",
-      "titleAr": "مختبر الحاسوب والذكاء الاصطناعي الحديث",
+      "categoryAr": "المرافق المدرسية",
+      "order": 1,
       "image": "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&q=80&w=800",
+      "id": "gallery-1",
       "categoryEn": "Facilities",
-      "categoryAr": "المرافق المدرسية",
-      "order": 1
+      "titleAr": "مختبر الحاسوب والذكاء الاصطناعي الحديث"
     },
     {
-      "id": "gallery-2",
       "titleEn": "Advanced Chemistry & Sciences Lab",
-      "titleAr": "مختبر الكيمياء والعلوم التطبيقية المتقدم",
+      "categoryAr": "المرافق المدرسية",
+      "order": 2,
       "image": "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&q=80&w=800",
-      "categoryEn": "Facilities",
-      "categoryAr": "المرافق المدرسية",
-      "order": 2
+      "id": "gallery-2",
+      "titleAr": "مختبر الكيمياء والعلوم التطبيقية المتقدم",
+      "categoryEn": "Facilities"
     },
     {
-      "id": "gallery-3",
       "titleEn": "Spring Sports Tournament Highlights",
-      "titleAr": "مقتطفات من مسابقة الدوري الرياضي المدرسي",
+      "categoryAr": "الأنشطة المدرسية",
       "image": "/slide3.jpg",
+      "order": 3,
+      "id": "gallery-3",
       "categoryEn": "Activities",
-      "categoryAr": "الأنشطة المدرسية",
-      "order": 3
+      "titleAr": "مقتطفات من مسابقة الدوري الرياضي المدرسي"
     },
     {
-      "id": "gallery-4",
-      "titleEn": "Kindergarten Creativity and Drawing Corner",
+      "categoryEn": "Activities",
       "titleAr": "ركن الفنون والإبداع لقسم الروضة والتمهيدي",
+      "id": "gallery-4",
+      "order": 4,
       "image": "https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=800",
-      "categoryEn": "Activities",
-      "categoryAr": "الأنشطة المدرسية",
-      "order": 4
+      "titleEn": "Kindergarten Creativity and Drawing Corner",
+      "categoryAr": "الأنشطة المدرسية"
     },
     {
-      "id": "gallery-5",
-      "titleEn": "The High School Central Library Reading Hall",
-      "titleAr": "قاعة المطالعة بالمكتبة المركزية لأكاديميتنا",
       "image": "https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&q=80&w=800",
+      "order": 5,
+      "titleEn": "The High School Central Library Reading Hall",
+      "categoryAr": "المرافق المدرسية",
+      "titleAr": "قاعة المطالعة بالمكتبة المركزية لأكاديميتنا",
+      "categoryEn": "Facilities",
+      "id": "gallery-5"
+    },
+    {
+      "id": "gallery-1780381255433",
+      "titleEn": "Test Item",
+      "titleAr": "عنصر تجريبي",
+      "image": "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=800",
       "categoryEn": "Facilities",
       "categoryAr": "المرافق المدرسية",
-      "order": 5
+      "order": 10,
+      "videoUrl": "",
+      "offsetX": 50,
+      "offsetY": 50
     }
-  ]
+  ],
+  "pages": [],
+  "siteTexts": []
 }

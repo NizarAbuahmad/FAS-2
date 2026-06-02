@@ -31,32 +31,51 @@ const firebaseConfig = JSON.parse(
 const firebaseApp = initializeApp(firebaseConfig);
 const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 
-// Helper to fetch collection items in Firestore
+// Helper to fetch collection items in Firestore with progressive low-latency timeout thresholds
 async function fetchCollection(collectionName: string): Promise<any[] | null> {
   try {
     const colRef = collection(firestoreDb, collectionName);
-    const snap = await getDocs(colRef);
+    
+    // Quick-execution timeout protection to prevent container socket timeouts in sandboxed runtimes
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 3500)
+    );
+
+    const snap = await Promise.race([
+      getDocs(colRef),
+      timeoutPromise
+    ]) as any;
+
     const results: any[] = [];
-    snap.forEach((doc) => {
+    snap.forEach((doc: any) => {
       results.push({ ...doc.data() });
     });
     return results;
   } catch (err) {
-    console.error(`[Firestore] Error fetching collection ${collectionName}:`, err);
+    console.warn(`[Firestore] Graceful lookup bypass for ${collectionName}:`, err instanceof Error ? err.message : String(err));
     return null;
   }
 }
 
-// Helper to fetch settings from Firestore
+// Helper to fetch settings from Firestore with low-latency timeout thresholds
 async function fetchSettings(): Promise<any> {
   try {
     const docRef = doc(firestoreDb, "settings", "main");
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
+    
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("Timeout fetching settings")), 3500)
+    );
+
+    const snap = await Promise.race([
+      getDoc(docRef),
+      timeoutPromise
+    ]) as any;
+
+    if (snap && snap.exists()) {
       return snap.data();
     }
   } catch (err) {
-    console.error("[Firestore] Error fetching settings:", err);
+    console.warn("[Firestore] Graceful settings lookup bypass:", err instanceof Error ? err.message : String(err));
   }
   return null;
 }
@@ -405,6 +424,11 @@ const DEFAULT_PASSWORDS: Record<string, string> = {
   guest_viewer: "viewer123"
 };
 
+// Global Circuit Breaker variables for fast progressive database resolution under restrictive network environments
+let firestoreBreakerOpen = false;
+let lastBreakerCheck = 0;
+const BREAKER_COOLDOWN = 120000; // 2 minutes (120 seconds)
+
 // Ensure db file exists and is validated with strict cryptographic hashing schemas
 async function loadDB() {
   // 1. Establish the local baseline first
@@ -446,47 +470,66 @@ async function loadDB() {
     dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
   }
 
-  // 2. Attempt to sync with Firestore
+  // 2. Attempt to sync with Firestore (respecting any active Circuit Breaker state)
+  if (firestoreBreakerOpen && (Date.now() - lastBreakerCheck < BREAKER_COOLDOWN)) {
+    console.log("[Firestore-Sync] Firestore circuit breaker is OPEN. Fast-loading local storage to avoid connection lag.");
+    return dbStore;
+  }
+
   try {
     console.log("[Firestore-Sync] Connecting to persistent Cloud Firestore using config database ID...");
     const firestoreUsers = await fetchCollection("users");
 
-    if (firestoreUsers !== null && firestoreUsers.length > 0) {
-      console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
-      const cloudPosts = await fetchCollection("posts");
-      const cloudSlides = await fetchCollection("slides");
-      const cloudSettings = await fetchSettings();
-      const cloudMessages = await fetchCollection("messages");
-      const cloudMedia = await fetchCollection("media");
-      const cloudGallery = await fetchCollection("gallery");
-      const cloudPages = await fetchCollection("pages");
-      const cloudSiteTexts = await fetchCollection("siteTexts");
+    if (firestoreUsers !== null) {
+      if (firestoreBreakerOpen) {
+        console.log("[Firestore-Sync] Firestore connection is back online! Closing the circuit breaker.");
+        firestoreBreakerOpen = false;
+      }
 
-      // Merge Cloud contents if retrieved successfully and NOT null
-      dbStore.users = firestoreUsers;
-      if (cloudPosts !== null) dbStore.posts = cloudPosts;
-      if (cloudSlides !== null) dbStore.slides = cloudSlides;
-      if (cloudSettings !== null) dbStore.settings = cloudSettings;
-      if (cloudMessages !== null) dbStore.messages = cloudMessages;
-      if (cloudMedia !== null) dbStore.media = cloudMedia;
-      if (cloudGallery !== null) dbStore.gallery = cloudGallery;
-      if (cloudPages !== null) dbStore.pages = cloudPages;
-      if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
+      if (firestoreUsers.length > 0) {
+        console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
+        const cloudPosts = await fetchCollection("posts");
+        const cloudSlides = await fetchCollection("slides");
+        const cloudSettings = await fetchSettings();
+        const cloudMessages = await fetchCollection("messages");
+        const cloudMedia = await fetchCollection("media");
+        const cloudGallery = await fetchCollection("gallery");
+        const cloudPages = await fetchCollection("pages");
+        const cloudSiteTexts = await fetchCollection("siteTexts");
+
+        // Merge Cloud contents if retrieved successfully and NOT null
+        dbStore.users = firestoreUsers;
+        if (cloudPosts !== null) dbStore.posts = cloudPosts;
+        if (cloudSlides !== null) dbStore.slides = cloudSlides;
+        if (cloudSettings !== null) dbStore.settings = cloudSettings;
+        if (cloudMessages !== null) dbStore.messages = cloudMessages;
+        if (cloudMedia !== null) dbStore.media = cloudMedia;
+        if (cloudGallery !== null) dbStore.gallery = cloudGallery;
+        if (cloudPages !== null) dbStore.pages = cloudPages;
+        if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
+      } else {
+        console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
+        const seedPromises: Promise<any>[] = [];
+        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+        seedPromises.push(writeSettings(dbStore.settings));
+        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+
+        await Promise.all(seedPromises);
+        console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
+      }
     } else {
-      console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
-      const seedPromises: Promise<any>[] = [];
-      for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
-      for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
-      seedPromises.push(writeSettings(dbStore.settings));
-      for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
-      for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
-      for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
-      for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
-      for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
-      for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
-
-      await Promise.all(seedPromises);
-      console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
+      // If fetching users returned null, it indicates a fetch error/timeout. Open the circuit breaker to avoid lag on future requests.
+      if (!firestoreBreakerOpen) {
+        console.warn("[Firestore-Sync] Firestore connection failed or timed out. Opening circuit breaker to protect request latency.");
+        firestoreBreakerOpen = true;
+        lastBreakerCheck = Date.now();
+      }
     }
   } catch (err) {
     console.warn("[Firestore-Sync] Warning: Connection to Firestore not fully active or restricted. Operating in local DB mode.", err);
@@ -556,14 +599,15 @@ function authenticateToken(allowedRoles?: string[]) {
 }
 
 async function saveDB(data: any) {
+  // 1. Core local file backup (primary high-availability layer)
   try {
-    // Save to local file backup
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
-    } catch (fErr) {
-      // Ignore
-    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (fErr) {
+    console.error("[Firestore-Sync] Failed to write local db.json backup:", fErr);
+  }
 
+  // 2. Progressive Cloud sync attempts using background racing to avoid lockups
+  try {
     const promises: Promise<any>[] = [];
 
     // Posts
@@ -601,24 +645,34 @@ async function saveDB(data: any) {
       if (st && st.key) promises.push(saveDocToFirestore("siteTexts", st.key, st));
     }
 
-    await Promise.all(promises);
+    // Set a timeout of 6 seconds so we do not hang request threads if the network or Firestore is offline
+    const syncTimeout = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error("Cloud Sync Timeout (6000ms)")), 6000)
+    );
+
+    await Promise.race([
+      Promise.all(promises),
+      syncTimeout
+    ]);
     console.log("[Firestore-Sync] Standard cloud write operation completed successfully.");
 
-    // Fire off reconciliation to clean up any deleted/orphaned documents and wait for completion
-    await Promise.all([
-      reconcileCollection("posts", data.posts || [], "id"),
-      reconcileCollection("slides", data.slides || [], "id"),
-      reconcileCollection("messages", data.messages || [], "id"),
-      reconcileCollection("media", data.media || [], "id"),
-      reconcileCollection("users", data.users || [], "id"),
-      reconcileCollection("gallery", data.gallery || [], "id"),
-      reconcileCollection("pages", data.pages || [], "id"),
-      reconcileCollection("siteTexts", data.siteTexts || [], "key")
+    // Fire off reconciliation asynchronously in background or with quick racing
+    await Promise.race([
+      Promise.all([
+        reconcileCollection("posts", data.posts || [], "id"),
+        reconcileCollection("slides", data.slides || [], "id"),
+        reconcileCollection("messages", data.messages || [], "id"),
+        reconcileCollection("media", data.media || [], "id"),
+        reconcileCollection("users", data.users || [], "id"),
+        reconcileCollection("gallery", data.gallery || [], "id"),
+        reconcileCollection("pages", data.pages || [], "id"),
+        reconcileCollection("siteTexts", data.siteTexts || [], "key")
+      ]),
+      syncTimeout
     ]);
 
   } catch (err) {
-    console.error("[Firestore-Sync] Error during saveDB sync flow:", err);
-    throw err;
+    console.warn("[Firestore-Sync] Warning: Sync connection to Firestore timed out or failed. Operating in high-availability local DB mode.", err instanceof Error ? err.message : String(err));
   }
 }
 
