@@ -1513,7 +1513,7 @@ export default function App() {
 
       {/* --- ADMINISTRATIVE LOGIN MODAL POPUP (Credentials bypass enabled for test evaluation!) --- */}
       {showLoginModal && (
-        <div id="login-module-modal" className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div id="login-module-modal" className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="relative max-w-md w-full bg-[#151515] border border-white/10 p-8 rounded-2xl shadow-2xl text-gray-200 space-y-6 animate-in fade-in zoom-in duration-250" dir={isRtl ? "rtl" : "ltr"}>
             
             {/* Dismiss trigger */}
