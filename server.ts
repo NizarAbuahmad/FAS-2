@@ -1013,15 +1013,10 @@ async function startServer() {
   // Initialize DB on boot
   let dbStore = await loadDB();
 
-  // Middleware to auto-sync latest database state from Firestore before executing any mutation / database state write
-  app.use(async (req, res, next) => {
-    if (["POST", "PUT", "DELETE"].includes(req.method) && req.path.startsWith("/api/")) {
-      try {
-        dbStore = await loadDB();
-      } catch (err) {
-        console.warn("[Database Sync Middleware Warning] Failed to refresh dbStore state on write request intercept.", err);
-      }
-    }
+  // The local in-memory dbStore is the authoritative single source of truth for the running container,
+  // which makes operations real-time and immune to timeout-driven stale overwrites. All writes update
+  // this state and save it to db.json and Firestore asynchronously.
+  app.use((req, res, next) => {
     next();
   });
 
@@ -1095,9 +1090,8 @@ async function startServer() {
   });
 
   // Get full database store (Admin/Editor/Viewer secure only)
-  app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), async (req, res) => {
+  app.get("/api/db", authenticateToken(["Admin", "Editor", "Viewer"]), (req, res) => {
     try {
-      dbStore = await loadDB();
       res.json(dbStore);
     } catch (err) {
       console.error("Error fetching full DB store:", err);
@@ -1131,9 +1125,8 @@ async function startServer() {
   });
 
   // Public/all data fetch
-  app.get("/api/public-data", async (req, res) => {
+  app.get("/api/public-data", (req, res) => {
     try {
-      dbStore = await loadDB();
       res.json({
         posts: (dbStore.posts || []).filter((p: Post) => p ? p.published : false),
         slides: [...(dbStore.slides || [])].sort((a: CarouselSlide, b: CarouselSlide) => (a.order || 0) - (b.order || 0)),
@@ -1211,9 +1204,8 @@ async function startServer() {
   });
 
   // Dynamic Pages List
-  app.get("/api/pages", async (req, res) => {
+  app.get("/api/pages", (req, res) => {
     try {
-      dbStore = await loadDB();
       res.json(dbStore.pages || []);
     } catch (err) {
       console.error("Error fetching pages:", err);
@@ -1280,9 +1272,8 @@ async function startServer() {
   });
 
   // Site Custom Texts list
-  app.get("/api/site-texts", async (req, res) => {
+  app.get("/api/site-texts", (req, res) => {
     try {
-      dbStore = await loadDB();
       res.json(dbStore.siteTexts || []);
     } catch (err) {
       console.error("Error fetching site texts:", err);
