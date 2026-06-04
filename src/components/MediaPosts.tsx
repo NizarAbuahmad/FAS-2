@@ -202,7 +202,7 @@ export default function MediaPosts({ posts, currentLang, onPostOpened }: MediaPo
       {selectedPost && (
         <div 
           id="post-preview-modal"
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm transition-all"
+          className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm transition-all"
         >
           <div className="relative max-w-3xl w-full max-h-[85vh] bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-y-auto border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-100" dir={isRtl ? "rtl" : "ltr"}>
             

@@ -38,7 +38,7 @@ async function fetchCollection(collectionName: string): Promise<any[] | null> {
     
     // Quick-execution timeout protection to prevent container socket timeouts in sandboxed runtimes
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 3500)
+      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 15000)
     );
 
     const snap = await Promise.race([
@@ -63,7 +63,7 @@ async function fetchSettings(): Promise<any> {
     const docRef = doc(firestoreDb, "settings", "main");
     
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout fetching settings")), 3500)
+      setTimeout(() => reject(new Error("Timeout fetching settings")), 15000)
     );
 
     const snap = await Promise.race([
@@ -598,7 +598,34 @@ function authenticateToken(allowedRoles?: string[]) {
   };
 }
 
-async function saveDB(data: any) {
+interface DBChange {
+  collection: string;
+  id: string;
+  doc: any;
+  action: "save" | "delete" | "batch-save";
+}
+
+let dbStore: any;
+let lastFirestoreLoad = Date.now();
+const CACHE_TTL = 8000; // 8 seconds cache TTL for Firestore reads
+
+async function getLatestDB() {
+  if (Date.now() - lastFirestoreLoad < CACHE_TTL) {
+    return dbStore;
+  }
+  try {
+    const updated = await loadDB();
+    if (updated) {
+      dbStore = updated;
+      lastFirestoreLoad = Date.now();
+    }
+  } catch (err) {
+    console.warn("[getLatestDB] Quietly serving stale cached data due to Firestore fetch failure:", err);
+  }
+  return dbStore;
+}
+
+async function saveDB(data: any, change?: DBChange) {
   // 1. Core local file backup (primary high-availability layer)
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
@@ -606,80 +633,56 @@ async function saveDB(data: any) {
     console.error("[Firestore-Sync] Failed to write local db.json backup:", fErr);
   }
 
-  // 2. Progressive Cloud sync attempts using background racing to avoid lockups
+  // Force cache invalidation immediately on next read request across any route
+  lastFirestoreLoad = 0;
+
+  // 2. Progressive Cloud sync attempts using micro-writes
   try {
-    const promises: Promise<any>[] = [];
-
-    // Posts
-    for (const p of data.posts || []) {
-      if (p && p.id) promises.push(saveDocToFirestore("posts", p.id, p));
+    if (change) {
+      if (change.action === "save") {
+        if (change.collection === "settings") {
+          await writeSettings(change.doc);
+        } else {
+          await saveDocToFirestore(change.collection, change.id, change.doc);
+        }
+        console.log(`[Firestore-Sync] Targeted slice write success for: ${change.collection}/${change.id}`);
+      } else if (change.action === "delete") {
+        await deleteDocFromFirestore(change.collection, change.id);
+        console.log(`[Firestore-Sync] Targeted slice delete success for: ${change.collection}/${change.id}`);
+      } else if (change.action === "batch-save") {
+        if (Array.isArray(change.doc)) {
+          console.log(`[Firestore-Sync] Batch write started for ${change.doc.length} items in ${change.collection}`);
+          const promises = change.doc.map(item => {
+            const docId = change.collection === "siteTexts" ? (item.key || item.id) : (item.id || item.key);
+            return saveDocToFirestore(change.collection, docId, item);
+          });
+          const syncTimeout = new Promise<never>((_, reject) => 
+            setTimeout(() => reject(new Error("Cloud Sync Timeout (10000ms)")), 10000)
+          );
+          await Promise.race([
+            Promise.all(promises),
+            syncTimeout
+          ]);
+          console.log(`[Firestore-Sync] Batch write completed successfully.`);
+        }
+      }
+    } else {
+      // Fallback: update settings or users on implicit edits if no change info provided
+      try {
+        await writeSettings(data.settings);
+      } catch (implicitErr) {
+        // silent pass
+      }
     }
-    // Slides
-    for (const s of data.slides || []) {
-      if (s && s.id) promises.push(saveDocToFirestore("slides", s.id, s));
-    }
-    // Settings
-    if (data.settings) promises.push(writeSettings(data.settings));
-    // Messages
-    for (const m of data.messages || []) {
-      if (m && m.id) promises.push(saveDocToFirestore("messages", m.id, m));
-    }
-    // Media
-    for (const me of data.media || []) {
-      if (me && me.id) promises.push(saveDocToFirestore("media", me.id, me));
-    }
-    // Users
-    for (const u of data.users || []) {
-      if (u && u.id) promises.push(saveDocToFirestore("users", u.id, u));
-    }
-    // Gallery
-    for (const g of data.gallery || []) {
-      if (g && g.id) promises.push(saveDocToFirestore("gallery", g.id, g));
-    }
-    // Pages
-    for (const pa of data.pages || []) {
-      if (pa && pa.id) promises.push(saveDocToFirestore("pages", pa.id, pa));
-    }
-    // SiteTexts
-    for (const st of data.siteTexts || []) {
-      if (st && st.key) promises.push(saveDocToFirestore("siteTexts", st.key, st));
-    }
-
-    // Set a timeout of 6 seconds so we do not hang request threads if the network or Firestore is offline
-    const syncTimeout = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error("Cloud Sync Timeout (6000ms)")), 6000)
-    );
-
-    await Promise.race([
-      Promise.all(promises),
-      syncTimeout
-    ]);
-    console.log("[Firestore-Sync] Standard cloud write operation completed successfully.");
-
-    // Fire off reconciliation asynchronously in background or with quick racing
-    await Promise.race([
-      Promise.all([
-        reconcileCollection("posts", data.posts || [], "id"),
-        reconcileCollection("slides", data.slides || [], "id"),
-        reconcileCollection("messages", data.messages || [], "id"),
-        reconcileCollection("media", data.media || [], "id"),
-        reconcileCollection("users", data.users || [], "id"),
-        reconcileCollection("gallery", data.gallery || [], "id"),
-        reconcileCollection("pages", data.pages || [], "id"),
-        reconcileCollection("siteTexts", data.siteTexts || [], "key")
-      ]),
-      syncTimeout
-    ]);
-
   } catch (err) {
-    console.warn("[Firestore-Sync] Warning: Sync connection to Firestore timed out or failed. Operating in high-availability local DB mode.", err instanceof Error ? err.message : String(err));
+    console.warn("[Firestore-Sync] Warning: Targeted sync write failed or timed out:", err instanceof Error ? err.message : String(err));
   }
 }
 
 // Helper to perform safe Express response handler commits and translate firestore sync failure states to JSON errors
-async function trySaveDB(res: any, data: any, successPayload: any) {
+async function trySaveDB(res: any, data: any, successPayload: any, change?: DBChange) {
   try {
-    await saveDB(data);
+    await saveDB(data, change);
     res.json(successPayload);
   } catch (err: any) {
     console.error("[trySaveDB] Sync database transaction failed:", err);
@@ -1011,12 +1014,18 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // Initialize DB on boot
-  let dbStore = await loadDB();
+  dbStore = await loadDB();
 
-  // The local in-memory dbStore is the authoritative single source of truth for the running container,
-  // which makes operations real-time and immune to timeout-driven stale overwrites. All writes update
-  // this state and save it to db.json and Firestore asynchronously.
-  app.use((req, res, next) => {
+  // Automatic background database synchronization middleware
+  // Intercepts API requests to verify if our local cache is stale and automatically refreshes from Firestore
+  app.use(async (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      try {
+        dbStore = await getLatestDB();
+      } catch (err) {
+        console.warn("[Database Sync Middleware Warning] Failed to refresh dbStore state on intercept.", err);
+      }
+    }
     next();
   });
 
@@ -1241,7 +1250,7 @@ async function startServer() {
       
       if (!dbStore.pages) dbStore.pages = [];
       dbStore.pages.push(newPage);
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "pages", id: newPage.id, doc: newPage, action: "save" });
       res.status(201).json(newPage);
     } else {
       // Update
@@ -1251,7 +1260,7 @@ async function startServer() {
           ...dbStore.pages[idx],
           ...pageData
         };
-        await saveDB(dbStore);
+        await saveDB(dbStore, { collection: "pages", id: pageData.id, doc: dbStore.pages[idx], action: "save" });
         res.json(dbStore.pages[idx]);
       } else {
         res.status(404).json({ error: "Page not found" });
@@ -1264,7 +1273,7 @@ async function startServer() {
     const initialLen = (dbStore.pages || []).length;
     dbStore.pages = (dbStore.pages || []).filter((p: any) => p.id !== req.params.id);
     if (dbStore.pages.length < initialLen) {
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "pages", id: req.params.id, doc: null, action: "delete" });
       res.json({ success: true, message: "Page deleted successfully" });
     } else {
       res.status(404).json({ error: "Page not found" });
@@ -1289,15 +1298,18 @@ async function startServer() {
     }
     if (!dbStore.siteTexts) dbStore.siteTexts = [];
     
+    let updatedItem: any;
     const idx = dbStore.siteTexts.findIndex((t: any) => t.key === key);
     if (idx !== -1) {
       dbStore.siteTexts[idx].valueEn = valueEn;
       dbStore.siteTexts[idx].valueAr = valueAr;
+      updatedItem = dbStore.siteTexts[idx];
     } else {
-      dbStore.siteTexts.push({ key, valueEn, valueAr });
+      updatedItem = { key, valueEn, valueAr };
+      dbStore.siteTexts.push(updatedItem);
     }
     
-    await saveDB(dbStore);
+    await saveDB(dbStore, { collection: "siteTexts", id: key, doc: updatedItem, action: "save" });
     res.json({ success: true, siteTexts: dbStore.siteTexts });
   });
 
@@ -1309,18 +1321,22 @@ async function startServer() {
     }
     if (!dbStore.siteTexts) dbStore.siteTexts = [];
     
+    const updatedTexts: any[] = [];
     texts.forEach((item: any) => {
       if (!item.key) return;
       const idx = dbStore.siteTexts.findIndex((t: any) => t.key === item.key);
       if (idx !== -1) {
         dbStore.siteTexts[idx].valueEn = item.valueEn;
         dbStore.siteTexts[idx].valueAr = item.valueAr;
+        updatedTexts.push(dbStore.siteTexts[idx]);
       } else {
-        dbStore.siteTexts.push({ key: item.key, valueEn: item.valueEn, valueAr: item.valueAr });
+        const newItem = { key: item.key, valueEn: item.valueEn, valueAr: item.valueAr };
+        dbStore.siteTexts.push(newItem);
+        updatedTexts.push(newItem);
       }
     });
     
-    await saveDB(dbStore);
+    await saveDB(dbStore, { collection: "siteTexts", id: "", doc: updatedTexts, action: "batch-save" });
     res.json({ success: true, siteTexts: dbStore.siteTexts });
   });
 
@@ -1348,7 +1364,7 @@ async function startServer() {
         views: 0
       };
       dbStore.posts.unshift(newPost);
-      await trySaveDB(res, dbStore, newPost);
+      await trySaveDB(res, dbStore, newPost, { collection: "posts", id: newPost.id, doc: newPost, action: "save" });
     } else {
       // Update
       const idx = dbStore.posts.findIndex((p: Post) => p.id === postData.id);
@@ -1357,7 +1373,7 @@ async function startServer() {
           ...dbStore.posts[idx],
           ...postData
         };
-        await trySaveDB(res, dbStore, dbStore.posts[idx]);
+        await trySaveDB(res, dbStore, dbStore.posts[idx], { collection: "posts", id: postData.id, doc: dbStore.posts[idx], action: "save" });
       } else {
         res.status(404).json({ error: "Post not found" });
       }
@@ -1369,7 +1385,7 @@ async function startServer() {
     const idx = dbStore.posts.findIndex((p: Post) => p.id === req.params.id);
     if (idx !== -1) {
       dbStore.posts[idx].views = (dbStore.posts[idx].views || 0) + 1;
-      await trySaveDB(res, dbStore, { views: dbStore.posts[idx].views });
+      await trySaveDB(res, dbStore, { views: dbStore.posts[idx].views }, { collection: "posts", id: req.params.id, doc: dbStore.posts[idx], action: "save" });
     } else {
       res.status(404).json({ error: "Post not found" });
     }
@@ -1380,7 +1396,7 @@ async function startServer() {
     const initialLen = dbStore.posts.length;
     dbStore.posts = dbStore.posts.filter((p: Post) => p.id !== req.params.id);
     if (dbStore.posts.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Post deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Post deleted" }, { collection: "posts", id: req.params.id, doc: null, action: "delete" });
     } else {
       res.status(404).json({ error: "Post not found" });
     }
@@ -1403,7 +1419,7 @@ async function startServer() {
         order: slideData.order || dbStore.slides.length + 1
       };
       dbStore.slides.push(newSlide);
-      await trySaveDB(res, dbStore, newSlide);
+      await trySaveDB(res, dbStore, newSlide, { collection: "slides", id: newSlide.id, doc: newSlide, action: "save" });
     } else {
       // Update
       const idx = dbStore.slides.findIndex((s: CarouselSlide) => s.id === slideData.id);
@@ -1412,7 +1428,7 @@ async function startServer() {
           ...dbStore.slides[idx],
           ...slideData
         };
-        await trySaveDB(res, dbStore, dbStore.slides[idx]);
+        await trySaveDB(res, dbStore, dbStore.slides[idx], { collection: "slides", id: slideData.id, doc: dbStore.slides[idx], action: "save" });
       } else {
         res.status(404).json({ error: "Slide not found" });
       }
@@ -1424,7 +1440,7 @@ async function startServer() {
     const initialLen = dbStore.slides.length;
     dbStore.slides = dbStore.slides.filter((s: CarouselSlide) => s.id !== req.params.id);
     if (dbStore.slides.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Slide deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Slide deleted" }, { collection: "slides", id: req.params.id, doc: null, action: "delete" });
     } else {
       res.status(404).json({ error: "Slide not found" });
     }
@@ -1462,7 +1478,7 @@ async function startServer() {
       dbStore.gallery.push(item);
     }
 
-    await trySaveDB(res, dbStore, { success: true, item });
+    await trySaveDB(res, dbStore, { success: true, item }, { collection: "gallery", id: item.id, doc: item, action: "save" });
   });
 
   // Delete Gallery Item
@@ -1473,7 +1489,7 @@ async function startServer() {
     const initialLen = dbStore.gallery.length;
     dbStore.gallery = dbStore.gallery.filter((g: GalleryItem) => g.id !== req.params.id);
     if (dbStore.gallery.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Gallery item deleted" });
+      await trySaveDB(res, dbStore, { success: true, message: "Gallery item deleted" }, { collection: "gallery", id: req.params.id, doc: null, action: "delete" });
     } else {
       res.status(404).json({ error: "Gallery item not found" });
     }
@@ -1486,7 +1502,7 @@ async function startServer() {
       ...dbStore.settings,
       ...settingsData
     };
-    await saveDB(dbStore);
+    await saveDB(dbStore, { collection: "settings", id: "main", doc: dbStore.settings, action: "save" });
     res.json(dbStore.settings);
   });
 
@@ -1509,7 +1525,7 @@ async function startServer() {
     };
 
     dbStore.messages.unshift(newMessage);
-    await saveDB(dbStore);
+    await saveDB(dbStore, { collection: "messages", id: newMessage.id, doc: newMessage, action: "save" });
 
     // Modern background promise loop for PDF compilation and dispatch
     generateBrochurePDF(newMessage.name, newMessage.phone, newMessage.subject)
@@ -1524,7 +1540,7 @@ async function startServer() {
     const idx = dbStore.messages.findIndex((m: ContactMessage) => m.id === req.params.id);
     if (idx !== -1) {
       dbStore.messages[idx].isRead = true;
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "messages", id: req.params.id, doc: dbStore.messages[idx], action: "save" });
       res.json(dbStore.messages[idx]);
     } else {
       res.status(404).json({ error: "Message not found" });
@@ -1536,7 +1552,7 @@ async function startServer() {
     const initialLen = dbStore.messages.length;
     dbStore.messages = dbStore.messages.filter((m: ContactMessage) => m.id !== req.params.id);
     if (dbStore.messages.length < initialLen) {
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "messages", id: req.params.id, doc: null, action: "delete" });
       res.json({ success: true, message: "Inquiry message deleted" });
     } else {
       res.status(404).json({ error: "Inquiry not found" });
@@ -1583,7 +1599,7 @@ async function startServer() {
     };
 
     dbStore.media.unshift(newAsset);
-    await saveDB(dbStore);
+    await saveDB(dbStore, { collection: "media", id: newAsset.id, doc: newAsset, action: "save" });
 
     console.log(`[AUTOMATIC IMAGE OPTIMIZATION BACKEND] File: ${name} -> ${messageLog}`);
 
@@ -1599,7 +1615,7 @@ async function startServer() {
     const initialLen = dbStore.media.length;
     dbStore.media = dbStore.media.filter((m: MediaAsset) => m.id !== req.params.id);
     if (dbStore.media.length < initialLen) {
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "media", id: req.params.id, doc: null, action: "delete" });
       res.json({ success: true, message: "Media asset deleted" });
     } else {
       res.status(404).json({ error: "Media not found" });
@@ -1632,7 +1648,7 @@ async function startServer() {
         passwordHash
       };
       dbStore.users.push(newUser);
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "users", id: newUser.id, doc: newUser, action: "save" });
       res.status(201).json({
         id: newUser.id,
         username: newUser.username,
@@ -1659,7 +1675,7 @@ async function startServer() {
         }
 
         dbStore.users[idx] = updatePayload;
-        await saveDB(dbStore);
+        await saveDB(dbStore, { collection: "users", id: userData.id, doc: updatePayload, action: "save" });
 
         res.json({
           id: updatePayload.id,
@@ -1679,7 +1695,7 @@ async function startServer() {
     const initialLen = dbStore.users.length;
     dbStore.users = dbStore.users.filter((u: AdminUser) => u.id !== req.params.id);
     if (dbStore.users.length < initialLen) {
-      await saveDB(dbStore);
+      await saveDB(dbStore, { collection: "users", id: req.params.id, doc: null, action: "delete" });
       res.json({ success: true, message: "Administrative profile removed" });
     } else {
       res.status(404).json({ error: "Profile not found" });
