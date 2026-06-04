@@ -12,7 +12,7 @@ import nodemailer from "nodemailer";
 import PDFDocument from "pdfkit";
 import { createServer as createViteServer } from "vite";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import { initializeFirestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 import { 
   Post, 
   CarouselSlide, 
@@ -29,7 +29,153 @@ const firebaseConfig = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf-8")
 );
 const firebaseApp = initializeApp(firebaseConfig);
-const firestoreDb = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
+const firestoreDb = initializeFirestore(firebaseApp, {
+  experimentalAutoDetectLongPolling: true,
+}, firebaseConfig.firestoreDatabaseId);
+
+// --- REST API BACKUP FALLBACK FOR HIGHEST RELIABILITY IN CLOUD CONTAINERS ---
+
+function parseRestFields(fields: any): any {
+  const result: any = {};
+  if (!fields || typeof fields !== "object") return result;
+  for (const key of Object.keys(fields)) {
+    result[key] = parseRestValue(fields[key]);
+  }
+  return result;
+}
+
+function parseRestValue(val: any): any {
+  if (!val || typeof val !== "object") return val;
+  if ("stringValue" in val) return val.stringValue;
+  if ("integerValue" in val) return parseInt(val.integerValue, 10);
+  if ("doubleValue" in val) return parseFloat(val.doubleValue);
+  if ("booleanValue" in val) return val.booleanValue;
+  if ("mapValue" in val) return parseRestFields(val.mapValue.fields || {});
+  if ("arrayValue" in val) {
+    const arr = val.arrayValue.values || [];
+    return arr.map((item: any) => parseRestValue(item));
+  }
+  if ("nullValue" in val) return null;
+  return val;
+}
+
+function encodeRestFields(obj: any): any {
+  const fields: any = {};
+  if (!obj || typeof obj !== "object") return fields;
+  for (const key of Object.keys(obj)) {
+    const encoded = encodeRestValue(obj[key]);
+    if (encoded !== undefined) {
+      fields[key] = encoded;
+    }
+  }
+  return fields;
+}
+
+function encodeRestValue(val: any): any {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === "string") return { stringValue: val };
+  if (typeof val === "boolean") return { booleanValue: val };
+  if (typeof val === "number") {
+    if (Number.isInteger(val)) {
+      return { integerValue: String(val) };
+    }
+    return { doubleValue: val };
+  }
+  if (Array.isArray(val)) {
+    return {
+      arrayValue: {
+        values: val.map(item => encodeRestValue(item)).filter(Boolean)
+      }
+    };
+  }
+  if (typeof val === "object") {
+    return {
+      mapValue: {
+        fields: encodeRestFields(val)
+      }
+    };
+  }
+  return undefined;
+}
+
+async function fetchCollectionRest(collectionName: string): Promise<any[] | null> {
+  try {
+    const projectId = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collectionName}?key=${firebaseConfig.apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 404) return [];
+      console.warn(`[Firestore-REST] Fail fetch ${collectionName}: ${res.statusText}`);
+      return null;
+    }
+    const data: any = await res.json();
+    if (!data.documents) return [];
+    
+    return data.documents.map((doc: any) => {
+      const parts = doc.name.split("/");
+      const id = parts[parts.length - 1];
+      const parsedFields = parseRestFields(doc.fields || {});
+      return { id, ...parsedFields };
+    });
+  } catch (err) {
+    console.warn(`[Firestore-REST] Error in fetchCollectionRest for ${collectionName}:`, err);
+    return null;
+  }
+}
+
+async function fetchSettingsRest(): Promise<any> {
+  try {
+    const projectId = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/settings/main?key=${firebaseConfig.apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      if (res.status === 404) return {};
+      console.warn(`[Firestore-REST] Fail fetch settings: ${res.statusText}`);
+      return null;
+    }
+    const doc: any = await res.json();
+    return parseRestFields(doc.fields || {});
+  } catch (err) {
+    console.warn("[Firestore-REST] Error in fetchSettingsRest:", err);
+    return null;
+  }
+}
+
+async function saveDocRest(collectionName: string, docId: string, data: any): Promise<boolean> {
+  try {
+    const projectId = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collectionName}/${docId}?key=${firebaseConfig.apiKey}`;
+    
+    const fields = encodeRestFields(sanitizeForFirestore(data));
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields })
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn(`[Firestore-REST] Error in saveDocRest for ${collectionName}/${docId}:`, err);
+    return false;
+  }
+}
+
+async function deleteDocRest(collectionName: string, docId: string): Promise<boolean> {
+  try {
+    const projectId = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/${collectionName}/${docId}?key=${firebaseConfig.apiKey}`;
+    const res = await fetch(url, {
+      method: "DELETE"
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn(`[Firestore-REST] Error in deleteDocRest for ${collectionName}/${docId}:`, err);
+    return false;
+  }
+}
 
 // Helper to fetch collection items in Firestore with progressive low-latency timeout thresholds
 async function fetchCollection(collectionName: string): Promise<any[] | null> {
@@ -38,7 +184,7 @@ async function fetchCollection(collectionName: string): Promise<any[] | null> {
     
     // Quick-execution timeout protection to prevent container socket timeouts in sandboxed runtimes
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 15000)
+      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 7000)
     );
 
     const snap = await Promise.race([
@@ -52,6 +198,12 @@ async function fetchCollection(collectionName: string): Promise<any[] | null> {
     });
     return results;
   } catch (err) {
+    console.warn(`[Firestore-SDK] Fetch failed or timed out for ${collectionName}. Attempting REST fallback...`);
+    const fallbackResults = await fetchCollectionRest(collectionName);
+    if (fallbackResults !== null) {
+      console.log(`[Firestore-REST] REST fallback successfully retrieved ${fallbackResults.length} items for ${collectionName}.`);
+      return fallbackResults;
+    }
     console.warn(`[Firestore] Graceful lookup bypass for ${collectionName}:`, err instanceof Error ? err.message : String(err));
     return null;
   }
@@ -63,7 +215,7 @@ async function fetchSettings(): Promise<any> {
     const docRef = doc(firestoreDb, "settings", "main");
     
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout fetching settings")), 15000)
+      setTimeout(() => reject(new Error("Timeout fetching settings")), 7000)
     );
 
     const snap = await Promise.race([
@@ -75,6 +227,12 @@ async function fetchSettings(): Promise<any> {
       return snap.data();
     }
   } catch (err) {
+    console.warn("[Firestore-SDK] Fetch settings failed or timed out. Attempting REST fallback...");
+    const fallbackSettings = await fetchSettingsRest();
+    if (fallbackSettings !== null) {
+      console.log("[Firestore-REST] REST fallback successfully retrieved settings.");
+      return fallbackSettings;
+    }
     console.warn("[Firestore] Graceful settings lookup bypass:", err instanceof Error ? err.message : String(err));
   }
   return null;
@@ -107,6 +265,12 @@ async function writeSettings(data: any): Promise<void> {
     const docRef = doc(firestoreDb, "settings", "main");
     await setDoc(docRef, sanitized);
   } catch (err) {
+    console.warn("[Firestore-SDK] Error writing settings. Attempting REST write fallback...");
+    const success = await saveDocRest("settings", "main", data);
+    if (success) {
+      console.log("[Firestore-REST] REST fallback successfully wrote settings.");
+      return;
+    }
     console.error("[Firestore] Error writing settings:", err);
     throw err;
   }
@@ -119,6 +283,12 @@ async function saveDocToFirestore(collectionName: string, docId: string, data: a
     const docRef = doc(firestoreDb, collectionName, docId);
     await setDoc(docRef, sanitized);
   } catch (err) {
+    console.warn(`[Firestore-SDK] Error saving document ${docId} to ${collectionName}. Attempting REST write fallback...`);
+    const success = await saveDocRest(collectionName, docId, data);
+    if (success) {
+      console.log(`[Firestore-REST] REST fallback successfully saved document ${docId} to ${collectionName}.`);
+      return;
+    }
     console.error(`[Firestore] Error saving document ${docId} to collection ${collectionName}:`, err);
     throw err;
   }
@@ -131,6 +301,12 @@ async function deleteDocFromFirestore(collectionName: string, docId: string): Pr
     await deleteDoc(docRef);
     console.log(`[Firestore] Deleted document ${docId} from collection ${collectionName} successfully.`);
   } catch (err) {
+    console.warn(`[Firestore-SDK] Error deleting document ${docId} from ${collectionName}. Attempting REST delete fallback...`);
+    const success = await deleteDocRest(collectionName, docId);
+    if (success) {
+      console.log(`[Firestore-REST] REST fallback successfully deleted document ${docId} from ${collectionName}.`);
+      return;
+    }
     console.error(`[Firestore] Error deleting document ${docId} from collection ${collectionName}:`, err);
   }
 }
@@ -544,16 +720,42 @@ async function syncWithFirestore() {
           fetchCollection("siteTexts")
         ]);
 
-        // Merge retrieved collections safely
-        if (cloudPosts !== null) dbStore.posts = cloudPosts;
-        if (cloudSlides !== null) dbStore.slides = cloudSlides;
-        if (cloudSettings !== null) dbStore.settings = cloudSettings;
-        if (cloudMessages !== null) dbStore.messages = cloudMessages;
-        if (cloudMedia !== null) dbStore.media = cloudMedia;
-        if (firestoreUsers !== null) dbStore.users = firestoreUsers;
-        if (cloudGallery !== null) dbStore.gallery = cloudGallery;
-        if (cloudPages !== null) dbStore.pages = cloudPages;
-        if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
+        // Merge / self-heal seed database collections as arrays
+        const processSyncCollection = async (collectionName: string, cloudItems: any[] | null, localKey: string, seedDocKey: string = "id") => {
+          if (cloudItems !== null) {
+            if (cloudItems.length > 0) {
+              (dbStore as any)[localKey] = cloudItems;
+            } else if ((dbStore as any)[localKey] && (dbStore as any)[localKey].length > 0) {
+              console.log(`[Firestore-Sync-Bg] Cloud '${collectionName}' is empty. Seeding local items up to Firestore...`);
+              const seedPromises = (dbStore as any)[localKey].map((item: any) => {
+                const docId = seedDocKey === "key" ? (item.key || item.id) : (item.id || item.key);
+                return saveDocToFirestore(collectionName, docId, item);
+              });
+              await Promise.all(seedPromises);
+            }
+          }
+        };
+
+        await Promise.all([
+          processSyncCollection("posts", cloudPosts, "posts", "id"),
+          processSyncCollection("slides", cloudSlides, "slides", "id"),
+          processSyncCollection("messages", cloudMessages, "messages", "id"),
+          processSyncCollection("media", cloudMedia, "media", "id"),
+          processSyncCollection("users", firestoreUsers, "users", "id"),
+          processSyncCollection("gallery", cloudGallery, "gallery", "id"),
+          processSyncCollection("pages", cloudPages, "pages", "id"),
+          processSyncCollection("siteTexts", cloudSiteTexts, "siteTexts", "key")
+        ]);
+
+        // Manage settings settings object specifically
+        if (cloudSettings !== null) {
+          if (Object.keys(cloudSettings).length > 0) {
+            dbStore.settings = { ...dbStore.settings, ...cloudSettings };
+          } else if (dbStore.settings && Object.keys(dbStore.settings).length > 0) {
+            console.log("[Firestore-Sync-Bg] Cloud settings empty. Seeding local settings to Firestore...");
+            await writeSettings(dbStore.settings);
+          }
+        }
 
         // Persist the combined cloud-fresh DB into our local fallback
         try {
