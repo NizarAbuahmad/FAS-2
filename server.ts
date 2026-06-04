@@ -681,6 +681,43 @@ async function loadDB() {
   return dbStoreLocal;
 }
 
+async function isDatabaseSeeded(): Promise<boolean> {
+  try {
+    const docRef = doc(firestoreDb, "system_meta", "seeding_v1");
+    const snap = await getDoc(docRef);
+    if (snap && snap.exists()) {
+      return snap.data().seeded === true;
+    }
+  } catch (err) {
+    console.warn("[Firestore-Sync] Error checking seeded state in SDK, try REST fallback...", err);
+    try {
+      const projectId = firebaseConfig.projectId;
+      const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/system_meta/seeding_v1?key=${firebaseConfig.apiKey}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const body = await res.json();
+        const fields = body.fields || {};
+        return fields.seeded && fields.seeded.booleanValue === true;
+      }
+    } catch (rErr) {
+      console.warn("[Firestore-Sync] REST seeded check failed as well:", rErr);
+    }
+  }
+  return false;
+}
+
+async function markDatabaseAsSeeded(): Promise<void> {
+  try {
+    const docRef = doc(firestoreDb, "system_meta", "seeding_v1");
+    await setDoc(docRef, { seeded: true });
+    console.log("[Firestore-Sync] Marked database as seeded in Firestore.");
+  } catch (err) {
+    console.warn("[Firestore-Sync] Failed to mark database as seeded via SDK, attempting REST fallback...", err);
+    await saveDocRest("system_meta", "seeding_v1", { seeded: true });
+  }
+}
+
 // Full background simulation for cloud syncing - decoupled completely from the request lifecycle
 async function syncWithFirestore() {
   if (firestoreBreakerOpen && (Date.now() - lastBreakerCheck < BREAKER_COOLDOWN)) {
@@ -690,105 +727,76 @@ async function syncWithFirestore() {
 
   try {
     console.log("[Firestore-Sync-Bg] Accessing persistent Cloud Firestore...");
-    const firestoreUsers = await fetchCollection("users");
+    const isSeeded = await isDatabaseSeeded();
 
-    if (firestoreUsers !== null) {
-      if (firestoreBreakerOpen) {
-        console.log("[Firestore-Sync-Bg] Online connection re-established! Closing circuit breaker.");
-        firestoreBreakerOpen = false;
-      }
+    if (firestoreBreakerOpen) {
+      console.log("[Firestore-Sync-Bg] Online connection re-established! Closing circuit breaker.");
+      firestoreBreakerOpen = false;
+    }
 
-      if (firestoreUsers.length > 0) {
-        console.log("[Firestore-Sync-Bg] Loading dynamic collections concurrently...");
-        const [
-          cloudPosts,
-          cloudSlides,
-          cloudSettings,
-          cloudMessages,
-          cloudMedia,
-          cloudGallery,
-          cloudPages,
-          cloudSiteTexts
-        ] = await Promise.all([
-          fetchCollection("posts"),
-          fetchCollection("slides"),
-          fetchSettings(),
-          fetchCollection("messages"),
-          fetchCollection("media"),
-          fetchCollection("gallery"),
-          fetchCollection("pages"),
-          fetchCollection("siteTexts")
-        ]);
-
-        // Merge / self-heal seed database collections as arrays
-        const processSyncCollection = async (collectionName: string, cloudItems: any[] | null, localKey: string, seedDocKey: string = "id") => {
-          if (cloudItems !== null) {
-            if (cloudItems.length > 0) {
-              (dbStore as any)[localKey] = cloudItems;
-            } else if ((dbStore as any)[localKey] && (dbStore as any)[localKey].length > 0) {
-              console.log(`[Firestore-Sync-Bg] Cloud '${collectionName}' is empty. Seeding local items up to Firestore...`);
-              const seedPromises = (dbStore as any)[localKey].map((item: any) => {
-                const docId = seedDocKey === "key" ? (item.key || item.id) : (item.id || item.key);
-                return saveDocToFirestore(collectionName, docId, item);
-              });
-              await Promise.all(seedPromises);
-            }
-          }
-        };
-
-        await Promise.all([
-          processSyncCollection("posts", cloudPosts, "posts", "id"),
-          processSyncCollection("slides", cloudSlides, "slides", "id"),
-          processSyncCollection("messages", cloudMessages, "messages", "id"),
-          processSyncCollection("media", cloudMedia, "media", "id"),
-          processSyncCollection("users", firestoreUsers, "users", "id"),
-          processSyncCollection("gallery", cloudGallery, "gallery", "id"),
-          processSyncCollection("pages", cloudPages, "pages", "id"),
-          processSyncCollection("siteTexts", cloudSiteTexts, "siteTexts", "key")
-        ]);
-
-        // Manage settings settings object specifically
-        if (cloudSettings !== null) {
-          if (Object.keys(cloudSettings).length > 0) {
-            dbStore.settings = { ...dbStore.settings, ...cloudSettings };
-          } else if (dbStore.settings && Object.keys(dbStore.settings).length > 0) {
-            console.log("[Firestore-Sync-Bg] Cloud settings empty. Seeding local settings to Firestore...");
-            await writeSettings(dbStore.settings);
-          }
-        }
-
-        // Persist the combined cloud-fresh DB into our local fallback
-        try {
-          fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
-          console.log("[Firestore-Sync-Bg] Database combined successfully and cached locally.");
-        } catch (fErr) {
-          console.error("[Firestore-Sync-Bg] Error writing db.json baseline:", fErr);
-        }
-      } else {
-        console.log("[Firestore-Sync-Bg] Firestore cloud is uninitialized. Background-seeding baseline data...");
-        const seedPromises: Promise<any>[] = [];
-        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
-        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+    if (!isSeeded) {
+      console.log("[Firestore-Sync-Bg] Firestore cloud is uninitialized. Completing one-shot seeding of baseline data...");
+      const seedPromises: Promise<any>[] = [];
+      for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+      for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+      if (dbStore.settings && Object.keys(dbStore.settings).length > 0) {
         seedPromises.push(writeSettings(dbStore.settings));
-        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
-        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
-        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
-        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
-        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
-        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
-
-        await Promise.all(seedPromises);
-        console.log("[Firestore-Sync-Bg] Seeding of Cloud Firestore finished successfully in background.");
       }
+      for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+      for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+      for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+      for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+      for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+      for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+
+      await Promise.all(seedPromises);
+      await markDatabaseAsSeeded();
+      console.log("[Firestore-Sync-Bg] Seeding of Cloud Firestore finished successfully.");
     } else {
-      console.warn("[Firestore-Sync-Bg] Received null active profiles. Opening circuit breaker to protect response times.");
-      if (!firestoreBreakerOpen) {
-        firestoreBreakerOpen = true;
-        lastBreakerCheck = Date.now();
+      console.log("[Firestore-Sync-Bg] Database verified seeded. Loading live cloud collections in overwrite mode...");
+      const [
+        cloudPosts,
+        cloudSlides,
+        cloudSettings,
+        cloudMessages,
+        cloudMedia,
+        cloudGallery,
+        cloudPages,
+        cloudSiteTexts,
+        cloudUsers
+      ] = await Promise.all([
+        fetchCollection("posts"),
+        fetchCollection("slides"),
+        fetchSettings(),
+        fetchCollection("messages"),
+        fetchCollection("media"),
+        fetchCollection("gallery"),
+        fetchCollection("pages"),
+        fetchCollection("siteTexts"),
+        fetchCollection("users")
+      ]);
+
+      // Always completely replace dbStore arrays with cloud values if fetched successfully.
+      if (cloudPosts !== null) dbStore.posts = cloudPosts;
+      if (cloudSlides !== null) dbStore.slides = cloudSlides;
+      if (cloudSettings !== null && Object.keys(cloudSettings).length > 0) dbStore.settings = cloudSettings;
+      if (cloudMessages !== null) dbStore.messages = cloudMessages;
+      if (cloudMedia !== null) dbStore.media = cloudMedia;
+      if (cloudGallery !== null) dbStore.gallery = cloudGallery;
+      if (cloudPages !== null) dbStore.pages = cloudPages;
+      if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
+      if (cloudUsers !== null) dbStore.users = cloudUsers;
+
+      // Persist the cloud-synced database copy into the local db.json cache
+      try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+        console.log("[Firestore-Sync-Bg] Local cache updated with absolute cloud state.");
+      } catch (fErr) {
+        console.error("[Firestore-Sync-Bg] Error writing db.json cache:", fErr);
       }
     }
   } catch (err) {
-    console.warn("[Firestore-Sync-Bg] Connection failed or timed out during background sync:", err);
+    console.warn("[Firestore-Sync-Bg] Connection failed or timed out during background sync, open breaker fallback:", err);
     if (!firestoreBreakerOpen) {
       firestoreBreakerOpen = true;
       lastBreakerCheck = Date.now();
@@ -1249,10 +1257,13 @@ async function startServer() {
   // Initialize DB on boot
   dbStore = await loadDB();
 
-  // Trigger non-blocking cloud pull on background sync on app startup
-  syncWithFirestore().catch(err => {
-    console.warn("[Boot-Sync-Bg] Initial background sync call caught an error:", err);
-  });
+  // Block boot to ensure initial cloud pull finishes first so we never serve stale fallback data!
+  console.log("[Boot] Priming and synchronizing database assets with Firestore...");
+  try {
+    await syncWithFirestore();
+  } catch (err) {
+    console.warn("[Boot-Sync] Startup blocking cloud sync timed out or failed. Continuing with local cache.", err);
+  }
 
   // Automatic background database synchronization middleware
   // Intercepts API requests to verify if our local cache is stale and automatically refreshes from Firestore
