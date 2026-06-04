@@ -718,6 +718,28 @@ async function markDatabaseAsSeeded(): Promise<void> {
   }
 }
 
+async function syncOrHealCollection(collectionName: string, cloudItems: any[] | null, localKey: string, docIdField: string = "id") {
+  const localItems = (dbStore as any)[localKey] || [];
+  
+  if (cloudItems === null) {
+    console.warn(`[Firestore-Sync] Fetch failed for ${collectionName}. Retaining ${localItems.length} local fallback items.`);
+    return;
+  }
+
+  if (cloudItems.length === 0 && localItems.length > 0) {
+    console.log(`[Firestore-Sync] Cloud '${collectionName}' is empty but local has ${localItems.length} items. Self-healing by seeding to Firestore...`);
+    const promises = localItems.map((item: any) => {
+      const docId = docIdField === "key" ? (item.key || item.id) : (item.id || item.key);
+      return saveDocToFirestore(collectionName, docId, item);
+    });
+    await Promise.all(promises);
+    // Keep our current local items in dbStore as baseline
+  } else {
+    // Overwrite local array with cloud items (cloud has items, or both are empty)
+    (dbStore as any)[localKey] = cloudItems;
+  }
+}
+
 // Full background simulation for cloud syncing - decoupled completely from the request lifecycle
 async function syncWithFirestore() {
   if (firestoreBreakerOpen && (Date.now() - lastBreakerCheck < BREAKER_COOLDOWN)) {
@@ -776,16 +798,27 @@ async function syncWithFirestore() {
         fetchCollection("users")
       ]);
 
-      // Always completely replace dbStore arrays with cloud values if fetched successfully.
-      if (cloudPosts !== null) dbStore.posts = cloudPosts;
-      if (cloudSlides !== null) dbStore.slides = cloudSlides;
-      if (cloudSettings !== null && Object.keys(cloudSettings).length > 0) dbStore.settings = cloudSettings;
-      if (cloudMessages !== null) dbStore.messages = cloudMessages;
-      if (cloudMedia !== null) dbStore.media = cloudMedia;
-      if (cloudGallery !== null) dbStore.gallery = cloudGallery;
-      if (cloudPages !== null) dbStore.pages = cloudPages;
-      if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
-      if (cloudUsers !== null) dbStore.users = cloudUsers;
+      // Use the safe self-healing syncing mechanism for all lists
+      await Promise.all([
+        syncOrHealCollection("posts", cloudPosts, "posts", "id"),
+        syncOrHealCollection("slides", cloudSlides, "slides", "id"),
+        syncOrHealCollection("messages", cloudMessages, "messages", "id"),
+        syncOrHealCollection("media", cloudMedia, "media", "id"),
+        syncOrHealCollection("gallery", cloudGallery, "gallery", "id"),
+        syncOrHealCollection("pages", cloudPages, "pages", "id"),
+        syncOrHealCollection("siteTexts", cloudSiteTexts, "siteTexts", "key"),
+        syncOrHealCollection("users", cloudUsers, "users", "id")
+      ]);
+
+      // Sync settings specifically
+      if (cloudSettings !== null) {
+        if (Object.keys(cloudSettings).length > 0) {
+          dbStore.settings = cloudSettings;
+        } else if (dbStore.settings && Object.keys(dbStore.settings).length > 0) {
+          console.log("[Firestore-Sync-Bg] Settings empty in cloud. Seeding from local to cloud...");
+          await writeSettings(dbStore.settings);
+        }
+      }
 
       // Persist the cloud-synced database copy into the local db.json cache
       try {
