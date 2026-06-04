@@ -487,15 +487,26 @@ async function loadDB() {
       }
 
       if (firestoreUsers.length > 0) {
-        console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore.");
-        const cloudPosts = await fetchCollection("posts");
-        const cloudSlides = await fetchCollection("slides");
-        const cloudSettings = await fetchSettings();
-        const cloudMessages = await fetchCollection("messages");
-        const cloudMedia = await fetchCollection("media");
-        const cloudGallery = await fetchCollection("gallery");
-        const cloudPages = await fetchCollection("pages");
-        const cloudSiteTexts = await fetchCollection("siteTexts");
+        console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore concurrently.");
+        const [
+          cloudPosts,
+          cloudSlides,
+          cloudSettings,
+          cloudMessages,
+          cloudMedia,
+          cloudGallery,
+          cloudPages,
+          cloudSiteTexts
+        ] = await Promise.all([
+          fetchCollection("posts"),
+          fetchCollection("slides"),
+          fetchSettings(),
+          fetchCollection("messages"),
+          fetchCollection("media"),
+          fetchCollection("gallery"),
+          fetchCollection("pages"),
+          fetchCollection("siteTexts")
+        ]);
 
         // Merge Cloud contents if retrieved successfully and NOT null
         dbStore.users = firestoreUsers;
@@ -606,6 +617,7 @@ interface DBChange {
 }
 
 let dbStore: any;
+let isFetchingDB = false;
 let lastFirestoreLoad = Date.now();
 const CACHE_TTL = 8000; // 8 seconds cache TTL for Firestore reads
 
@@ -613,6 +625,10 @@ async function getLatestDB() {
   if (Date.now() - lastFirestoreLoad < CACHE_TTL) {
     return dbStore;
   }
+  if (isFetchingDB) {
+    return dbStore;
+  }
+  isFetchingDB = true;
   try {
     const updated = await loadDB();
     if (updated) {
@@ -621,6 +637,8 @@ async function getLatestDB() {
     }
   } catch (err) {
     console.warn("[getLatestDB] Quietly serving stale cached data due to Firestore fetch failure:", err);
+  } finally {
+    isFetchingDB = false;
   }
   return dbStore;
 }
