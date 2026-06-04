@@ -429,10 +429,10 @@ let firestoreBreakerOpen = false;
 let lastBreakerCheck = 0;
 const BREAKER_COOLDOWN = 120000; // 2 minutes (120 seconds)
 
-// Ensure db file exists and is validated with strict cryptographic hashing schemas
+// Ensure db file exists and is loaded with zero blocking network calls
 async function loadDB() {
   // 1. Establish the local baseline first
-  let dbStore: any = {
+  let dbStoreLocal: any = {
     posts: [],
     slides: [],
     settings: {},
@@ -450,15 +450,15 @@ async function loadDB() {
       const fileData = fs.readFileSync(DB_FILE, "utf-8");
       const parsed = JSON.parse(fileData);
       if (parsed && typeof parsed === "object") {
-        if (Array.isArray(parsed.posts)) dbStore.posts = parsed.posts;
-        if (Array.isArray(parsed.slides)) dbStore.slides = parsed.slides;
-        if (parsed.settings) dbStore.settings = parsed.settings;
-        if (Array.isArray(parsed.messages)) dbStore.messages = parsed.messages;
-        if (Array.isArray(parsed.media)) dbStore.media = parsed.media;
-        if (Array.isArray(parsed.users)) dbStore.users = parsed.users;
-        if (Array.isArray(parsed.gallery)) dbStore.gallery = parsed.gallery;
-        if (Array.isArray(parsed.pages)) dbStore.pages = parsed.pages;
-        if (Array.isArray(parsed.siteTexts)) dbStore.siteTexts = parsed.siteTexts;
+        if (Array.isArray(parsed.posts)) dbStoreLocal.posts = parsed.posts;
+        if (Array.isArray(parsed.slides)) dbStoreLocal.slides = parsed.slides;
+        if (parsed.settings) dbStoreLocal.settings = parsed.settings;
+        if (Array.isArray(parsed.messages)) dbStoreLocal.messages = parsed.messages;
+        if (Array.isArray(parsed.media)) dbStoreLocal.media = parsed.media;
+        if (Array.isArray(parsed.users)) dbStoreLocal.users = parsed.users;
+        if (Array.isArray(parsed.gallery)) dbStoreLocal.gallery = parsed.gallery;
+        if (Array.isArray(parsed.pages)) dbStoreLocal.pages = parsed.pages;
+        if (Array.isArray(parsed.siteTexts)) dbStoreLocal.siteTexts = parsed.siteTexts;
         loadedLocal = true;
       }
     }
@@ -467,89 +467,13 @@ async function loadDB() {
   }
 
   if (!loadedLocal) {
-    dbStore = JSON.parse(JSON.stringify(DEFAULT_DB));
+    dbStoreLocal = JSON.parse(JSON.stringify(DEFAULT_DB));
   }
 
-  // 2. Attempt to sync with Firestore (respecting any active Circuit Breaker state)
-  if (firestoreBreakerOpen && (Date.now() - lastBreakerCheck < BREAKER_COOLDOWN)) {
-    console.log("[Firestore-Sync] Firestore circuit breaker is OPEN. Fast-loading local storage to avoid connection lag.");
-    return dbStore;
-  }
-
-  try {
-    console.log("[Firestore-Sync] Connecting to persistent Cloud Firestore using config database ID...");
-    const firestoreUsers = await fetchCollection("users");
-
-    if (firestoreUsers !== null) {
-      if (firestoreBreakerOpen) {
-        console.log("[Firestore-Sync] Firestore connection is back online! Closing the circuit breaker.");
-        firestoreBreakerOpen = false;
-      }
-
-      if (firestoreUsers.length > 0) {
-        console.log("[Firestore-Sync] Successfully loaded data from Cloud Firestore concurrently.");
-        const [
-          cloudPosts,
-          cloudSlides,
-          cloudSettings,
-          cloudMessages,
-          cloudMedia,
-          cloudGallery,
-          cloudPages,
-          cloudSiteTexts
-        ] = await Promise.all([
-          fetchCollection("posts"),
-          fetchCollection("slides"),
-          fetchSettings(),
-          fetchCollection("messages"),
-          fetchCollection("media"),
-          fetchCollection("gallery"),
-          fetchCollection("pages"),
-          fetchCollection("siteTexts")
-        ]);
-
-        // Merge Cloud contents if retrieved successfully and NOT null
-        dbStore.users = firestoreUsers;
-        if (cloudPosts !== null) dbStore.posts = cloudPosts;
-        if (cloudSlides !== null) dbStore.slides = cloudSlides;
-        if (cloudSettings !== null) dbStore.settings = cloudSettings;
-        if (cloudMessages !== null) dbStore.messages = cloudMessages;
-        if (cloudMedia !== null) dbStore.media = cloudMedia;
-        if (cloudGallery !== null) dbStore.gallery = cloudGallery;
-        if (cloudPages !== null) dbStore.pages = cloudPages;
-        if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
-      } else {
-        console.log("[Firestore-Sync] Firebase store is empty or uninitialized. Seeding baseline data to Cloud...");
-        const seedPromises: Promise<any>[] = [];
-        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
-        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
-        seedPromises.push(writeSettings(dbStore.settings));
-        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
-        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
-        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
-        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
-        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
-        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
-
-        await Promise.all(seedPromises);
-        console.log("[Firestore-Sync] Cloud seed deployment completed successfully.");
-      }
-    } else {
-      // If fetching users returned null, it indicates a fetch error/timeout. Open the circuit breaker to avoid lag on future requests.
-      if (!firestoreBreakerOpen) {
-        console.warn("[Firestore-Sync] Firestore connection failed or timed out. Opening circuit breaker to protect request latency.");
-        firestoreBreakerOpen = true;
-        lastBreakerCheck = Date.now();
-      }
-    }
-  } catch (err) {
-    console.warn("[Firestore-Sync] Warning: Connection to Firestore not fully active or restricted. Operating in local DB mode.", err);
-  }
-
-  // 3. Post-load processing (password self-healing / auto-migrate updates)
+  // 2. Post-load processing (password self-healing / auto-migrate updates)
   let modified = false;
-  if (dbStore.users && dbStore.users.length > 0) {
-    dbStore.users.forEach((u: any) => {
+  if (dbStoreLocal.users && dbStoreLocal.users.length > 0) {
+    dbStoreLocal.users.forEach((u: any) => {
       const defaultPassword = DEFAULT_PASSWORDS[u.username];
       if (defaultPassword) {
         // Self-healing reset: confirm the hash is generated using this default password
@@ -572,13 +496,102 @@ async function loadDB() {
 
   if (modified) {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+      fs.writeFileSync(DB_FILE, JSON.stringify(dbStoreLocal, null, 2), "utf-8");
     } catch (fErr) {
       // Ignore
     }
   }
 
-  return dbStore;
+  return dbStoreLocal;
+}
+
+// Full background simulation for cloud syncing - decoupled completely from the request lifecycle
+async function syncWithFirestore() {
+  if (firestoreBreakerOpen && (Date.now() - lastBreakerCheck < BREAKER_COOLDOWN)) {
+    console.log("[Firestore-Sync-Bg] Circuit breaker is open. Bypassing Firestore network fetch.");
+    return;
+  }
+
+  try {
+    console.log("[Firestore-Sync-Bg] Accessing persistent Cloud Firestore...");
+    const firestoreUsers = await fetchCollection("users");
+
+    if (firestoreUsers !== null) {
+      if (firestoreBreakerOpen) {
+        console.log("[Firestore-Sync-Bg] Online connection re-established! Closing circuit breaker.");
+        firestoreBreakerOpen = false;
+      }
+
+      if (firestoreUsers.length > 0) {
+        console.log("[Firestore-Sync-Bg] Loading dynamic collections concurrently...");
+        const [
+          cloudPosts,
+          cloudSlides,
+          cloudSettings,
+          cloudMessages,
+          cloudMedia,
+          cloudGallery,
+          cloudPages,
+          cloudSiteTexts
+        ] = await Promise.all([
+          fetchCollection("posts"),
+          fetchCollection("slides"),
+          fetchSettings(),
+          fetchCollection("messages"),
+          fetchCollection("media"),
+          fetchCollection("gallery"),
+          fetchCollection("pages"),
+          fetchCollection("siteTexts")
+        ]);
+
+        // Merge retrieved collections safely
+        if (cloudPosts !== null) dbStore.posts = cloudPosts;
+        if (cloudSlides !== null) dbStore.slides = cloudSlides;
+        if (cloudSettings !== null) dbStore.settings = cloudSettings;
+        if (cloudMessages !== null) dbStore.messages = cloudMessages;
+        if (cloudMedia !== null) dbStore.media = cloudMedia;
+        if (firestoreUsers !== null) dbStore.users = firestoreUsers;
+        if (cloudGallery !== null) dbStore.gallery = cloudGallery;
+        if (cloudPages !== null) dbStore.pages = cloudPages;
+        if (cloudSiteTexts !== null) dbStore.siteTexts = cloudSiteTexts;
+
+        // Persist the combined cloud-fresh DB into our local fallback
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(dbStore, null, 2), "utf-8");
+          console.log("[Firestore-Sync-Bg] Database combined successfully and cached locally.");
+        } catch (fErr) {
+          console.error("[Firestore-Sync-Bg] Error writing db.json baseline:", fErr);
+        }
+      } else {
+        console.log("[Firestore-Sync-Bg] Firestore cloud is uninitialized. Background-seeding baseline data...");
+        const seedPromises: Promise<any>[] = [];
+        for (const p of dbStore.posts) seedPromises.push(saveDocToFirestore("posts", p.id, p));
+        for (const s of dbStore.slides) seedPromises.push(saveDocToFirestore("slides", s.id, s));
+        seedPromises.push(writeSettings(dbStore.settings));
+        for (const m of dbStore.messages) seedPromises.push(saveDocToFirestore("messages", m.id, m));
+        for (const me of dbStore.media) seedPromises.push(saveDocToFirestore("media", me.id, me));
+        for (const u of dbStore.users) seedPromises.push(saveDocToFirestore("users", u.id, u));
+        for (const g of dbStore.gallery) seedPromises.push(saveDocToFirestore("gallery", g.id, g));
+        for (const pa of dbStore.pages) seedPromises.push(saveDocToFirestore("pages", pa.id, pa));
+        for (const st of dbStore.siteTexts) seedPromises.push(saveDocToFirestore("siteTexts", st.key, st));
+
+        await Promise.all(seedPromises);
+        console.log("[Firestore-Sync-Bg] Seeding of Cloud Firestore finished successfully in background.");
+      }
+    } else {
+      console.warn("[Firestore-Sync-Bg] Received null active profiles. Opening circuit breaker to protect response times.");
+      if (!firestoreBreakerOpen) {
+        firestoreBreakerOpen = true;
+        lastBreakerCheck = Date.now();
+      }
+    }
+  } catch (err) {
+    console.warn("[Firestore-Sync-Bg] Connection failed or timed out during background sync:", err);
+    if (!firestoreBreakerOpen) {
+      firestoreBreakerOpen = true;
+      lastBreakerCheck = Date.now();
+    }
+  }
 }
 
 // Relational role-based server-sanctioned route guards using stateful cryptographically authed tokens
@@ -629,71 +642,71 @@ async function getLatestDB() {
     return dbStore;
   }
   isFetchingDB = true;
-  try {
-    const updated = await loadDB();
-    if (updated) {
-      dbStore = updated;
+
+  // Launch the asynchronous background sync, keeping client access 100% latency-free!
+  Promise.resolve().then(async () => {
+    try {
+      await syncWithFirestore();
       lastFirestoreLoad = Date.now();
+    } catch (err) {
+      console.warn("[getLatestDB-Bg] Background sync trigger caught an error:", err);
+    } finally {
+      isFetchingDB = false;
     }
-  } catch (err) {
-    console.warn("[getLatestDB] Quietly serving stale cached data due to Firestore fetch failure:", err);
-  } finally {
-    isFetchingDB = false;
-  }
+  });
+
   return dbStore;
 }
 
 async function saveDB(data: any, change?: DBChange) {
-  // 1. Core local file backup (primary high-availability layer)
+  // 1. Core local file update (primary zero-latency tier)
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch (fErr) {
-    console.error("[Firestore-Sync] Failed to write local db.json backup:", fErr);
+    console.error("[Firestore-Sync-Bg] Failed to write local db.json backup:", fErr);
   }
 
-  // Force cache invalidation immediately on next read request across any route
+  // Clear cache TTL so background verification is triggered on subsequent fetches if needed
   lastFirestoreLoad = 0;
 
-  // 2. Progressive Cloud sync attempts using micro-writes
-  try {
-    if (change) {
-      if (change.action === "save") {
-        if (change.collection === "settings") {
-          await writeSettings(change.doc);
-        } else {
-          await saveDocToFirestore(change.collection, change.id, change.doc);
+  // 2. Run Firestore write operations asynchronously in background (completely detached from user request)
+  if (change) {
+    Promise.resolve().then(async () => {
+      try {
+        if (change.action === "save") {
+          if (change.collection === "settings") {
+            await writeSettings(change.doc);
+          } else {
+            await saveDocToFirestore(change.collection, change.id, change.doc);
+          }
+          console.log(`[Firestore-Sync-Bg] Successfully synced ${change.collection}/${change.id} to cloud`);
+        } else if (change.action === "delete") {
+          await deleteDocFromFirestore(change.collection, change.id);
+          console.log(`[Firestore-Sync-Bg] Successfully deleted ${change.collection}/${change.id} from cloud`);
+        } else if (change.action === "batch-save") {
+          if (Array.isArray(change.doc)) {
+            console.log(`[Firestore-Sync-Bg] Syncing batch of ${change.doc.length} items to cloud`);
+            const promises = change.doc.map(item => {
+              const docId = change.collection === "siteTexts" ? (item.key || item.id) : (item.id || item.key);
+              return saveDocToFirestore(change.collection, docId, item);
+            });
+            await Promise.all(promises);
+            console.log(`[Firestore-Sync-Bg] Successfully batch synced ${change.doc.length} items to cloud`);
+          }
         }
-        console.log(`[Firestore-Sync] Targeted slice write success for: ${change.collection}/${change.id}`);
-      } else if (change.action === "delete") {
-        await deleteDocFromFirestore(change.collection, change.id);
-        console.log(`[Firestore-Sync] Targeted slice delete success for: ${change.collection}/${change.id}`);
-      } else if (change.action === "batch-save") {
-        if (Array.isArray(change.doc)) {
-          console.log(`[Firestore-Sync] Batch write started for ${change.doc.length} items in ${change.collection}`);
-          const promises = change.doc.map(item => {
-            const docId = change.collection === "siteTexts" ? (item.key || item.id) : (item.id || item.key);
-            return saveDocToFirestore(change.collection, docId, item);
-          });
-          const syncTimeout = new Promise<never>((_, reject) => 
-            setTimeout(() => reject(new Error("Cloud Sync Timeout (10000ms)")), 10000)
-          );
-          await Promise.race([
-            Promise.all(promises),
-            syncTimeout
-          ]);
-          console.log(`[Firestore-Sync] Batch write completed successfully.`);
-        }
+      } catch (err) {
+        console.warn(`[Firestore-Sync-Bg] Targeted background save failed:`, err instanceof Error ? err.message : String(err));
       }
-    } else {
-      // Fallback: update settings or users on implicit edits if no change info provided
+    });
+  } else {
+    // Fallback implicit settings sync
+    Promise.resolve().then(async () => {
       try {
         await writeSettings(data.settings);
       } catch (implicitErr) {
-        // silent pass
+        // Safe skip
       }
-    }
-  } catch (err) {
-    console.warn("[Firestore-Sync] Warning: Targeted sync write failed or timed out:", err instanceof Error ? err.message : String(err));
+    });
   }
 }
 
@@ -705,7 +718,7 @@ async function trySaveDB(res: any, data: any, successPayload: any, change?: DBCh
   } catch (err: any) {
     console.error("[trySaveDB] Sync database transaction failed:", err);
     res.status(500).json({ 
-      error: "Failed to persist updates to persistent Cloud Firestore storage database.",
+      error: "Failed to persist updates locally.",
       details: err.message || String(err)
     });
   }
@@ -1033,6 +1046,11 @@ async function startServer() {
 
   // Initialize DB on boot
   dbStore = await loadDB();
+
+  // Trigger non-blocking cloud pull on background sync on app startup
+  syncWithFirestore().catch(err => {
+    console.warn("[Boot-Sync-Bg] Initial background sync call caught an error:", err);
+  });
 
   // Automatic background database synchronization middleware
   // Intercepts API requests to verify if our local cache is stale and automatically refreshes from Firestore
