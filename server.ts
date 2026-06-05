@@ -177,64 +177,23 @@ async function deleteDocRest(collectionName: string, docId: string): Promise<boo
   }
 }
 
-// Helper to fetch collection items in Firestore with progressive low-latency timeout thresholds
+// Helper to fetch collection items in Firestore
 async function fetchCollection(collectionName: string): Promise<any[] | null> {
-  try {
-    const colRef = collection(firestoreDb, collectionName);
-    
-    // Quick-execution timeout protection to prevent container socket timeouts in sandboxed runtimes
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error(`Timeout fetching collection: ${collectionName}`)), 7000)
-    );
-
-    const snap = await Promise.race([
-      getDocs(colRef),
-      timeoutPromise
-    ]) as any;
-
-    const results: any[] = [];
-    snap.forEach((doc: any) => {
-      results.push({ ...doc.data() });
-    });
+  const results = await fetchCollectionRest(collectionName);
+  if (results !== null) {
     return results;
-  } catch (err) {
-    console.warn(`[Firestore-SDK] Fetch failed or timed out for ${collectionName}. Attempting REST fallback...`);
-    const fallbackResults = await fetchCollectionRest(collectionName);
-    if (fallbackResults !== null) {
-      console.log(`[Firestore-REST] REST fallback successfully retrieved ${fallbackResults.length} items for ${collectionName}.`);
-      return fallbackResults;
-    }
-    console.warn(`[Firestore] Graceful lookup bypass for ${collectionName}:`, err instanceof Error ? err.message : String(err));
-    return null;
   }
+  console.warn(`[Firestore] Failed to retrieve items via REST for ${collectionName}.`);
+  return null;
 }
 
-// Helper to fetch settings from Firestore with low-latency timeout thresholds
+// Helper to fetch settings from Firestore
 async function fetchSettings(): Promise<any> {
-  try {
-    const docRef = doc(firestoreDb, "settings", "main");
-    
-    const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error("Timeout fetching settings")), 7000)
-    );
-
-    const snap = await Promise.race([
-      getDoc(docRef),
-      timeoutPromise
-    ]) as any;
-
-    if (snap && snap.exists()) {
-      return snap.data();
-    }
-  } catch (err) {
-    console.warn("[Firestore-SDK] Fetch settings failed or timed out. Attempting REST fallback...");
-    const fallbackSettings = await fetchSettingsRest();
-    if (fallbackSettings !== null) {
-      console.log("[Firestore-REST] REST fallback successfully retrieved settings.");
-      return fallbackSettings;
-    }
-    console.warn("[Firestore] Graceful settings lookup bypass:", err instanceof Error ? err.message : String(err));
+  const config = await fetchSettingsRest();
+  if (config !== null) {
+    return config;
   }
+  console.warn("[Firestore] Failed to retrieve settings via REST.");
   return null;
 }
 
@@ -260,54 +219,25 @@ function sanitizeForFirestore(obj: any): any {
 
 // Helper to save settings to Firestore
 async function writeSettings(data: any): Promise<void> {
-  try {
-    const sanitized = sanitizeForFirestore(data);
-    const docRef = doc(firestoreDb, "settings", "main");
-    await setDoc(docRef, sanitized);
-  } catch (err) {
-    console.warn("[Firestore-SDK] Error writing settings. Attempting REST write fallback...");
-    const success = await saveDocRest("settings", "main", data);
-    if (success) {
-      console.log("[Firestore-REST] REST fallback successfully wrote settings.");
-      return;
-    }
-    console.error("[Firestore] Error writing settings:", err);
-    throw err;
+  const success = await saveDocRest("settings", "main", data);
+  if (!success) {
+    throw new Error("REST save settings failed");
   }
 }
 
 // Helper to save document inside collection
 async function saveDocToFirestore(collectionName: string, docId: string, data: any): Promise<void> {
-  try {
-    const sanitized = sanitizeForFirestore(data);
-    const docRef = doc(firestoreDb, collectionName, docId);
-    await setDoc(docRef, sanitized);
-  } catch (err) {
-    console.warn(`[Firestore-SDK] Error saving document ${docId} to ${collectionName}. Attempting REST write fallback...`);
-    const success = await saveDocRest(collectionName, docId, data);
-    if (success) {
-      console.log(`[Firestore-REST] REST fallback successfully saved document ${docId} to ${collectionName}.`);
-      return;
-    }
-    console.error(`[Firestore] Error saving document ${docId} to collection ${collectionName}:`, err);
-    throw err;
+  const success = await saveDocRest(collectionName, docId, data);
+  if (!success) {
+    throw new Error(`REST save document ${docId} to ${collectionName} failed`);
   }
 }
 
 // Helper to delete document inside collection
 async function deleteDocFromFirestore(collectionName: string, docId: string): Promise<void> {
-  try {
-    const docRef = doc(firestoreDb, collectionName, docId);
-    await deleteDoc(docRef);
-    console.log(`[Firestore] Deleted document ${docId} from collection ${collectionName} successfully.`);
-  } catch (err) {
-    console.warn(`[Firestore-SDK] Error deleting document ${docId} from ${collectionName}. Attempting REST delete fallback...`);
-    const success = await deleteDocRest(collectionName, docId);
-    if (success) {
-      console.log(`[Firestore-REST] REST fallback successfully deleted document ${docId} from ${collectionName}.`);
-      return;
-    }
-    console.error(`[Firestore] Error deleting document ${docId} from collection ${collectionName}:`, err);
+  const success = await deleteDocRest(collectionName, docId);
+  if (!success) {
+    throw new Error(`REST delete document ${docId} from ${collectionName} failed`);
   }
 }
 
@@ -683,38 +613,27 @@ async function loadDB() {
 
 async function isDatabaseSeeded(): Promise<boolean> {
   try {
-    const docRef = doc(firestoreDb, "system_meta", "seeding_v1");
-    const snap = await getDoc(docRef);
-    if (snap && snap.exists()) {
-      return snap.data().seeded === true;
+    const projectId = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/system_meta/seeding_v1?key=${firebaseConfig.apiKey}`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const body = await res.json();
+      const fields = body.fields || {};
+      return fields.seeded && fields.seeded.booleanValue === true;
     }
   } catch (err) {
-    console.warn("[Firestore-Sync] Error checking seeded state in SDK, try REST fallback...", err);
-    try {
-      const projectId = firebaseConfig.projectId;
-      const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
-      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents/system_meta/seeding_v1?key=${firebaseConfig.apiKey}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const body = await res.json();
-        const fields = body.fields || {};
-        return fields.seeded && fields.seeded.booleanValue === true;
-      }
-    } catch (rErr) {
-      console.warn("[Firestore-Sync] REST seeded check failed as well:", rErr);
-    }
+    console.warn("[Firestore-Sync-REST] REST seeded check failed:", err);
   }
   return false;
 }
 
 async function markDatabaseAsSeeded(): Promise<void> {
   try {
-    const docRef = doc(firestoreDb, "system_meta", "seeding_v1");
-    await setDoc(docRef, { seeded: true });
-    console.log("[Firestore-Sync] Marked database as seeded in Firestore.");
-  } catch (err) {
-    console.warn("[Firestore-Sync] Failed to mark database as seeded via SDK, attempting REST fallback...", err);
     await saveDocRest("system_meta", "seeding_v1", { seeded: true });
+    console.log("[Firestore-Sync-REST] Marked database as seeded in Firestore.");
+  } catch (err) {
+    console.error("[Firestore-Sync-REST] Failed to mark database as seeded:", err);
   }
 }
 
