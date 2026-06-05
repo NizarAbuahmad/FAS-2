@@ -1552,14 +1552,9 @@ async function startServer() {
 
   // Delete Dynamic Page
   app.delete("/api/pages/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
-    const initialLen = (dbStore.pages || []).length;
     dbStore.pages = (dbStore.pages || []).filter((p: any) => p.id !== req.params.id);
-    if (dbStore.pages.length < initialLen) {
-      await saveDB(dbStore, { collection: "pages", id: req.params.id, doc: null, action: "delete" });
-      res.json({ success: true, message: "Page deleted successfully" });
-    } else {
-      res.status(404).json({ error: "Page not found" });
-    }
+    await saveDB(dbStore, { collection: "pages", id: req.params.id, doc: null, action: "delete" });
+    res.json({ success: true, message: "Page deleted successfully" });
   });
 
   // Site Custom Texts list
@@ -1675,13 +1670,8 @@ async function startServer() {
 
   // Delete Post
   app.delete("/api/posts/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
-    const initialLen = dbStore.posts.length;
-    dbStore.posts = dbStore.posts.filter((p: Post) => p.id !== req.params.id);
-    if (dbStore.posts.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Post deleted" }, { collection: "posts", id: req.params.id, doc: null, action: "delete" });
-    } else {
-      res.status(404).json({ error: "Post not found" });
-    }
+    dbStore.posts = (dbStore.posts || []).filter((p: Post) => p.id !== req.params.id);
+    await trySaveDB(res, dbStore, { success: true, message: "Post deleted" }, { collection: "posts", id: req.params.id, doc: null, action: "delete" });
   });
 
   // Create or Update Slides
@@ -1719,13 +1709,8 @@ async function startServer() {
 
   // Delete Slide
   app.delete("/api/slides/:id", authenticateToken(["Admin"]), async (req, res) => {
-    const initialLen = dbStore.slides.length;
-    dbStore.slides = dbStore.slides.filter((s: CarouselSlide) => s.id !== req.params.id);
-    if (dbStore.slides.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Slide deleted" }, { collection: "slides", id: req.params.id, doc: null, action: "delete" });
-    } else {
-      res.status(404).json({ error: "Slide not found" });
-    }
+    dbStore.slides = (dbStore.slides || []).filter((s: CarouselSlide) => s.id !== req.params.id);
+    await trySaveDB(res, dbStore, { success: true, message: "Slide deleted" }, { collection: "slides", id: req.params.id, doc: null, action: "delete" });
   });
 
   // Create or Update Gallery Item
@@ -1768,13 +1753,8 @@ async function startServer() {
     if (!dbStore.gallery) {
       dbStore.gallery = [];
     }
-    const initialLen = dbStore.gallery.length;
     dbStore.gallery = dbStore.gallery.filter((g: GalleryItem) => g.id !== req.params.id);
-    if (dbStore.gallery.length < initialLen) {
-      await trySaveDB(res, dbStore, { success: true, message: "Gallery item deleted" }, { collection: "gallery", id: req.params.id, doc: null, action: "delete" });
-    } else {
-      res.status(404).json({ error: "Gallery item not found" });
-    }
+    await trySaveDB(res, dbStore, { success: true, message: "Gallery item deleted" }, { collection: "gallery", id: req.params.id, doc: null, action: "delete" });
   });
 
   // Update Settings (Contact Info, Notification alerts)
@@ -1831,14 +1811,9 @@ async function startServer() {
 
   // Delete message query
   app.delete("/api/messages/:id", authenticateToken(["Admin"]), async (req, res) => {
-    const initialLen = dbStore.messages.length;
-    dbStore.messages = dbStore.messages.filter((m: ContactMessage) => m.id !== req.params.id);
-    if (dbStore.messages.length < initialLen) {
-      await saveDB(dbStore, { collection: "messages", id: req.params.id, doc: null, action: "delete" });
-      res.json({ success: true, message: "Inquiry message deleted" });
-    } else {
-      res.status(404).json({ error: "Inquiry not found" });
-    }
+    dbStore.messages = (dbStore.messages || []).filter((m: ContactMessage) => m.id !== req.params.id);
+    await saveDB(dbStore, { collection: "messages", id: req.params.id, doc: null, action: "delete" });
+    res.json({ success: true, message: "Inquiry message deleted" });
   });
 
   // --- AUTOMATED ASSET MANAGEMENT: UPLOADS & OPTIMIZATION ---
@@ -1894,14 +1869,9 @@ async function startServer() {
 
   // Delete Media asset
   app.delete("/api/media/:id", authenticateToken(["Admin", "Editor"]), async (req, res) => {
-    const initialLen = dbStore.media.length;
-    dbStore.media = dbStore.media.filter((m: MediaAsset) => m.id !== req.params.id);
-    if (dbStore.media.length < initialLen) {
-      await saveDB(dbStore, { collection: "media", id: req.params.id, doc: null, action: "delete" });
-      res.json({ success: true, message: "Media asset deleted" });
-    } else {
-      res.status(404).json({ error: "Media not found" });
-    }
+    dbStore.media = (dbStore.media || []).filter((m: MediaAsset) => m.id !== req.params.id);
+    await saveDB(dbStore, { collection: "media", id: req.params.id, doc: null, action: "delete" });
+    res.json({ success: true, message: "Media asset deleted" });
   });
 
   // Create administrators/users (with secure PBKDF2/cryptographic salting and hashing)
@@ -1974,14 +1944,9 @@ async function startServer() {
 
   // Delete Administrator
   app.delete("/api/users/:id", authenticateToken(["Admin"]), async (req, res) => {
-    const initialLen = dbStore.users.length;
-    dbStore.users = dbStore.users.filter((u: AdminUser) => u.id !== req.params.id);
-    if (dbStore.users.length < initialLen) {
-      await saveDB(dbStore, { collection: "users", id: req.params.id, doc: null, action: "delete" });
-      res.json({ success: true, message: "Administrative profile removed" });
-    } else {
-      res.status(404).json({ error: "Profile not found" });
-    }
+    dbStore.users = (dbStore.users || []).filter((u: AdminUser) => u.id !== req.params.id);
+    await saveDB(dbStore, { collection: "users", id: req.params.id, doc: null, action: "delete" });
+    res.json({ success: true, message: "Administrative profile removed" });
   });
 
 

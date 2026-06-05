@@ -61,5 +61,9 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true;
     }
+
+    match /system_meta/{docId} {
+      allow read, write: if true;
+    }
   }
 }
