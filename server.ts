@@ -4,6 +4,7 @@
  */
 
 import express from "express";
+import cors from "cors";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
@@ -1207,15 +1208,15 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
   // CORS middleware to support external frontends (e.g. Vercel)
-  app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-    next();
-  });
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow all origins dynamically to support requests with credentials securely
+      callback(null, true);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
+  }));
 
   // Initialize DB on boot
   dbStore = await loadDB();
